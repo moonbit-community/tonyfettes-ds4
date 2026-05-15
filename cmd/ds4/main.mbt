@@ -14,6 +14,152 @@ struct Config {
 }
 
 ///|
+const ANSI_THINK : String = "\u001b[90m"
+
+///|
+const ANSI_RESET : String = "\u001b[0m"
+
+///|
+enum ThinkMarker {
+  Open
+  Close
+}
+
+///|
+struct ThinkRenderer {
+  format_thinking : Bool
+  use_color : Bool
+  mut in_think : Bool
+  mut color_open : Bool
+  mut last_output_newline : Bool
+  mut pending : String
+}
+
+///|
+fn ThinkRenderer::new(format_thinking : Bool) -> ThinkRenderer {
+  {
+    format_thinking,
+    use_color: true,
+    in_think: format_thinking,
+    color_open: false,
+    last_output_newline: true,
+    pending: "",
+  }
+}
+
+///|
+fn next_think_marker(text : StringView) -> (Int, ThinkMarker)? {
+  let open = text.find("<think>")
+  let close = text.find("</think>")
+  match (open, close) {
+    (None, None) => None
+    (Some(i), None) => Some((i, Open))
+    (None, Some(i)) => Some((i, Close))
+    (Some(open_i), Some(close_i)) =>
+      if open_i < close_i {
+        Some((open_i, Open))
+      } else {
+        Some((close_i, Close))
+      }
+  }
+}
+
+///|
+fn ThinkRenderer::write_text(
+  self : ThinkRenderer,
+  out : StringBuilder,
+  text : StringView,
+) -> Unit {
+  if text.length() == 0 {
+    return
+  }
+  if self.in_think && self.use_color && !self.color_open {
+    out.write_string(ANSI_THINK)
+    self.color_open = true
+  }
+  out.write_stringview(text)
+  self.last_output_newline = text.rev_find("\n") is Some(i) &&
+    i == text.length() - 1
+}
+
+///|
+fn ThinkRenderer::close_think(
+  self : ThinkRenderer,
+  out : StringBuilder,
+) -> Unit {
+  self.in_think = false
+  if self.color_open {
+    out.write_string(ANSI_RESET)
+    self.color_open = false
+  }
+  if !self.last_output_newline {
+    out.write_string("\n")
+    self.last_output_newline = true
+  }
+}
+
+///|
+fn ThinkRenderer::render_complete(
+  self : ThinkRenderer,
+  text : StringView,
+) -> String {
+  let out = StringBuilder(size_hint=text.length() + 16)
+  let mut rest = text
+  while rest.length() > 0 {
+    match next_think_marker(rest) {
+      None => {
+        self.write_text(out, rest)
+        rest = rest.view(start_offset=rest.length())
+      }
+      Some((index, Open)) => {
+        self.write_text(out, rest.view(end_offset=index))
+        self.in_think = true
+        rest = rest.view(start_offset=index + "<think>".length())
+      }
+      Some((index, Close)) => {
+        self.write_text(out, rest.view(end_offset=index))
+        self.close_think(out)
+        rest = rest.view(start_offset=index + "</think>".length())
+      }
+    }
+  }
+  out.to_string()
+}
+
+///|
+fn ThinkRenderer::render_piece(self : ThinkRenderer, raw : String) -> String {
+  if !self.format_thinking {
+    return raw
+  }
+  let input = self.pending + raw
+  match input.rev_find("<") {
+    Some(index) if input.length() - index < "</think>".length() => {
+      self.pending = input.view(start_offset=index).to_owned()
+      self.render_complete(input.view(end_offset=index))
+    }
+    _ => {
+      self.pending = ""
+      self.render_complete(input[:])
+    }
+  }
+}
+
+///|
+fn ThinkRenderer::finish(self : ThinkRenderer) -> String {
+  if !self.format_thinking {
+    return ""
+  }
+  let out = StringBuilder(size_hint=self.pending.length() + 8)
+  out.write_string(self.render_complete(self.pending[:]))
+  self.pending = ""
+  if self.color_open {
+    out.write_string(ANSI_RESET)
+    self.color_open = false
+  }
+  out.to_string()
+}
+
+///|
 fn default_model_path() -> String {
   let home = @env.get_env_var("HOME").unwrap_or("/Users/dii")
   home +
@@ -197,15 +343,6 @@ fn parse_args(args : Array[String]) -> Config? {
 }
 
 ///|
-fn output_text(raw : String, think_mode : @ds4lib.ThinkMode) -> String {
-  if think_mode.enabled() {
-    raw.replace_all(old="<think>", new="").replace_all(old="</think>", new="\n")
-  } else {
-    raw
-  }
-}
-
-///|
 async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
   let engine = @ds4lib.Engine::open(
     @ds4lib.EngineConfig::new(config.model_path, backend=config.backend),
@@ -244,6 +381,7 @@ async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
     },
   )
   let stdout = @io.BufferedWriter::new(@stdio.stdout, size=4096)
+  let renderer = ThinkRenderer::new(think_mode.enabled())
   while generated < max_tokens {
     let token = session.sample(
       sampler,
@@ -253,7 +391,7 @@ async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
     if token == eos || token < 0 {
       break
     }
-    stdout.write(output_text(engine.token_text(token), think_mode)) catch {
+    stdout.write(renderer.render_piece(engine.token_text(token))) catch {
       _ => abort("ds4: stdout write failed")
     }
     stdout.flush() catch {
@@ -262,8 +400,16 @@ async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
     session.eval(token)
     generated = generated + 1
   }
-  stdout.write("\n") catch {
-    _ => abort("ds4: stdout write failed")
+  let tail = renderer.finish()
+  if tail != "" {
+    stdout.write(tail) catch {
+      _ => abort("ds4: stdout write failed")
+    }
+  }
+  if !renderer.last_output_newline {
+    stdout.write("\n") catch {
+      _ => abort("ds4: stdout write failed")
+    }
   }
   stdout.flush() catch {
     _ => abort("ds4: stdout flush failed")

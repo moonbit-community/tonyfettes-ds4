@@ -8,6 +8,10 @@ package "feihaoxiang/ds4/cmd/ds4"
 // Types and methods
 type Config
 
+type ThinkMarker
+
+type ThinkRenderer
+
 // Type aliases
 
 // Traits
