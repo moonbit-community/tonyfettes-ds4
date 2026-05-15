@@ -14,7 +14,6 @@ typedef struct {
   ds4_session *ptr;
   MoonBitDS4Engine *engine;
   int32_t status;
-  char last_error[1024];
 } MoonBitDS4Session;
 
 typedef struct {
@@ -25,10 +24,6 @@ typedef struct {
   uint64_t state;
 } MoonBitDS4Sampler;
 
-static const char *mb_cstr(moonbit_bytes_t bytes) {
-  return bytes ? (const char *)bytes : "";
-}
-
 static moonbit_bytes_t mb_copy_bytes(const char *ptr, size_t len) {
   moonbit_bytes_t out = moonbit_make_bytes((int32_t)len, 0);
   if (len > 0) {
@@ -38,9 +33,6 @@ static moonbit_bytes_t mb_copy_bytes(const char *ptr, size_t len) {
 }
 
 static moonbit_bytes_t mb_copy_cstr(const char *ptr) {
-  if (!ptr) {
-    ptr = "";
-  }
   return mb_copy_bytes(ptr, strlen(ptr));
 }
 
@@ -111,15 +103,7 @@ static MoonBitDS4Session *session_new_raw(void) {
   session->ptr = NULL;
   session->engine = NULL;
   session->status = 1;
-  session->last_error[0] = '\0';
   return session;
-}
-
-static void session_set_error(MoonBitDS4Session *session, const char *message) {
-  if (!message) {
-    message = "";
-  }
-  snprintf(session->last_error, sizeof(session->last_error), "%s", message);
 }
 
 MOONBIT_FFI_EXPORT
@@ -212,13 +196,13 @@ MoonBitDS4Engine *moonbit_ds4_engine_open(
 ) {
   MoonBitDS4Engine *engine = engine_new_raw();
   ds4_engine_options opt = {0};
-  opt.model_path = mb_cstr(model_path);
-  opt.mtp_path = mb_cstr(mtp_path);
+  opt.model_path = (const char *)model_path;
+  opt.mtp_path = (const char *)mtp_path;
   opt.backend = (ds4_backend)backend;
   opt.n_threads = n_threads;
   opt.mtp_draft_tokens = mtp_draft_tokens;
   opt.mtp_margin = mtp_margin;
-  opt.directional_steering_file = mb_cstr(directional_steering_file);
+  opt.directional_steering_file = (const char *)directional_steering_file;
   opt.directional_steering_attn = directional_steering_attn;
   opt.directional_steering_ffn = directional_steering_ffn;
   opt.warm_weights = warm_weights != 0;
@@ -229,41 +213,36 @@ MoonBitDS4Engine *moonbit_ds4_engine_open(
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_engine_status(MoonBitDS4Engine *engine) {
-  return engine ? engine->status : 1;
+  return engine->status;
 }
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_engine_summary(MoonBitDS4Engine *engine) {
-  if (engine && engine->ptr) {
-    ds4_engine_summary(engine->ptr);
-  }
+  ds4_engine_summary(engine->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_engine_token_eos(MoonBitDS4Engine *engine) {
-  return engine && engine->ptr ? ds4_token_eos(engine->ptr) : -1;
+  return ds4_token_eos(engine->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_engine_routed_quant_bits(MoonBitDS4Engine *engine) {
-  return engine && engine->ptr ? ds4_engine_routed_quant_bits(engine->ptr) : 0;
+  return ds4_engine_routed_quant_bits(engine->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_engine_has_mtp(MoonBitDS4Engine *engine) {
-  return (int32_t)(engine && engine->ptr && ds4_engine_has_mtp(engine->ptr));
+  return (int32_t)ds4_engine_has_mtp(engine->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_engine_mtp_draft_tokens(MoonBitDS4Engine *engine) {
-  return engine && engine->ptr ? ds4_engine_mtp_draft_tokens(engine->ptr) : 0;
+  return ds4_engine_mtp_draft_tokens(engine->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 moonbit_bytes_t moonbit_ds4_engine_token_text(MoonBitDS4Engine *engine, int32_t token) {
-  if (!engine || !engine->ptr) {
-    return mb_copy_cstr("");
-  }
   size_t len = 0;
   char *text = ds4_token_text(engine->ptr, token, &len);
   moonbit_bytes_t out = mb_copy_bytes(text, len);
@@ -284,35 +263,28 @@ MoonBitDS4Sampler *moonbit_ds4_sampler_new(uint64_t seed) {
 MOONBIT_FFI_EXPORT
 MoonBitDS4Tokens *moonbit_ds4_tokens_copy(MoonBitDS4Tokens *tokens) {
   MoonBitDS4Tokens *out = tokens_new_raw();
-  if (tokens) {
-    ds4_tokens_copy(&out->value, &tokens->value);
-  }
+  ds4_tokens_copy(&out->value, &tokens->value);
   return out;
 }
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_tokens_push(MoonBitDS4Tokens *tokens, int32_t token) {
-  if (tokens) {
-    ds4_tokens_push(&tokens->value, token);
-  }
+  ds4_tokens_push(&tokens->value, token);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_tokens_length(MoonBitDS4Tokens *tokens) {
-  return tokens ? tokens->value.len : 0;
+  return tokens->value.len;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_tokens_get(MoonBitDS4Tokens *tokens, int32_t index) {
-  if (!tokens || index < 0 || index >= tokens->value.len) {
-    return 0;
-  }
   return tokens->value.v[index];
 }
 
 MOONBIT_FFI_EXPORT
 int32_t *moonbit_ds4_tokens_to_fixed_array(MoonBitDS4Tokens *tokens) {
-  int32_t len = tokens ? tokens->value.len : 0;
+  int32_t len = tokens->value.len;
   int32_t *out = moonbit_make_int32_array_raw(len);
   for (int32_t i = 0; i < len; i++) {
     out[i] = tokens->value.v[i];
@@ -322,27 +294,20 @@ int32_t *moonbit_ds4_tokens_to_fixed_array(MoonBitDS4Tokens *tokens) {
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_tokens_starts_with(MoonBitDS4Tokens *tokens, MoonBitDS4Tokens *prefix) {
-  if (!tokens || !prefix) {
-    return 0;
-  }
   return (int32_t)ds4_tokens_starts_with(&tokens->value, &prefix->value);
 }
 
 MOONBIT_FFI_EXPORT
 MoonBitDS4Tokens *moonbit_ds4_engine_tokenize_text(MoonBitDS4Engine *engine, moonbit_bytes_t text) {
   MoonBitDS4Tokens *out = tokens_new_raw();
-  if (engine && engine->ptr) {
-    ds4_tokenize_text(engine->ptr, mb_cstr(text), &out->value);
-  }
+  ds4_tokenize_text(engine->ptr, (const char *)text, &out->value);
   return out;
 }
 
 MOONBIT_FFI_EXPORT
 MoonBitDS4Tokens *moonbit_ds4_engine_tokenize_rendered_chat(MoonBitDS4Engine *engine, moonbit_bytes_t text) {
   MoonBitDS4Tokens *out = tokens_new_raw();
-  if (engine && engine->ptr) {
-    ds4_tokenize_rendered_chat(engine->ptr, mb_cstr(text), &out->value);
-  }
+  ds4_tokenize_rendered_chat(engine->ptr, (const char *)text, &out->value);
   return out;
 }
 
@@ -354,30 +319,24 @@ MoonBitDS4Tokens *moonbit_ds4_engine_encode_chat_prompt(
   int32_t think_mode
 ) {
   MoonBitDS4Tokens *out = tokens_new_raw();
-  if (engine && engine->ptr) {
-    ds4_encode_chat_prompt(
-      engine->ptr,
-      mb_cstr(system),
-      mb_cstr(prompt),
-      (ds4_think_mode)think_mode,
-      &out->value
-    );
-  }
+  ds4_encode_chat_prompt(
+    engine->ptr,
+    (const char *)system,
+    (const char *)prompt,
+    (ds4_think_mode)think_mode,
+    &out->value
+  );
   return out;
 }
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_engine_chat_begin(MoonBitDS4Engine *engine, MoonBitDS4Tokens *tokens) {
-  if (engine && engine->ptr && tokens) {
-    ds4_chat_begin(engine->ptr, &tokens->value);
-  }
+  ds4_chat_begin(engine->ptr, &tokens->value);
 }
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_engine_chat_append_max_effort_prefix(MoonBitDS4Engine *engine, MoonBitDS4Tokens *tokens) {
-  if (engine && engine->ptr && tokens) {
-    ds4_chat_append_max_effort_prefix(engine->ptr, &tokens->value);
-  }
+  ds4_chat_append_max_effort_prefix(engine->ptr, &tokens->value);
 }
 
 MOONBIT_FFI_EXPORT
@@ -387,9 +346,7 @@ void moonbit_ds4_engine_chat_append_message(
   moonbit_bytes_t role,
   moonbit_bytes_t content
 ) {
-  if (engine && engine->ptr && tokens) {
-    ds4_chat_append_message(engine->ptr, &tokens->value, mb_cstr(role), mb_cstr(content));
-  }
+  ds4_chat_append_message(engine->ptr, &tokens->value, (const char *)role, (const char *)content);
 }
 
 MOONBIT_FFI_EXPORT
@@ -398,74 +355,53 @@ void moonbit_ds4_engine_chat_append_assistant_prefix(
   MoonBitDS4Tokens *tokens,
   int32_t think_mode
 ) {
-  if (engine && engine->ptr && tokens) {
-    ds4_chat_append_assistant_prefix(engine->ptr, &tokens->value, (ds4_think_mode)think_mode);
-  }
+  ds4_chat_append_assistant_prefix(engine->ptr, &tokens->value, (ds4_think_mode)think_mode);
 }
 
 MOONBIT_FFI_EXPORT
 MoonBitDS4Session *moonbit_ds4_session_create(MoonBitDS4Engine *engine, int32_t ctx_size) {
   MoonBitDS4Session *session = session_new_raw();
-  if (!engine || !engine->ptr) {
-    session_set_error(session, "engine is not open");
-    return session;
-  }
   session->status = ds4_session_create(&session->ptr, engine->ptr, ctx_size);
   if (session->status == 0) {
     session->engine = engine;
     moonbit_incref(engine);
-  } else {
-    session_set_error(session, "ds4_session_create failed");
   }
   return session;
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_status(MoonBitDS4Session *session) {
-  return session ? session->status : 1;
+  return session->status;
 }
 
 MOONBIT_FFI_EXPORT
-moonbit_bytes_t moonbit_ds4_session_last_error(MoonBitDS4Session *session) {
-  return mb_copy_cstr(session ? session->last_error : "session is null");
+int32_t moonbit_ds4_session_sync(
+  MoonBitDS4Session *session,
+  MoonBitDS4Tokens *prompt,
+  uint8_t *err,
+  int32_t errlen
+) {
+  return ds4_session_sync(session->ptr, &prompt->value, (char *)err, (size_t)errlen);
 }
 
 MOONBIT_FFI_EXPORT
-int32_t moonbit_ds4_session_sync(MoonBitDS4Session *session, MoonBitDS4Tokens *prompt) {
-  if (!session || !session->ptr || !prompt) {
-    if (session) {
-      session_set_error(session, "session or prompt is null");
-    }
-    return 1;
-  }
-  char err[1024] = {0};
-  int32_t status = ds4_session_sync(session->ptr, &prompt->value, err, sizeof(err));
-  session_set_error(session, err);
-  return status;
-}
-
-MOONBIT_FFI_EXPORT
-int32_t moonbit_ds4_session_eval(MoonBitDS4Session *session, int32_t token) {
-  if (!session || !session->ptr) {
-    if (session) {
-      session_set_error(session, "session is null");
-    }
-    return 1;
-  }
-  char err[1024] = {0};
-  int32_t status = ds4_session_eval(session->ptr, token, err, sizeof(err));
-  session_set_error(session, err);
-  return status;
+int32_t moonbit_ds4_session_eval(
+  MoonBitDS4Session *session,
+  int32_t token,
+  uint8_t *err,
+  int32_t errlen
+) {
+  return ds4_session_eval(session->ptr, token, (char *)err, (size_t)errlen);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_argmax(MoonBitDS4Session *session) {
-  return session && session->ptr ? ds4_session_argmax(session->ptr) : -1;
+  return ds4_session_argmax(session->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_argmax_excluding(MoonBitDS4Session *session, int32_t excluded_id) {
-  return session && session->ptr ? ds4_session_argmax_excluding(session->ptr, excluded_id) : -1;
+  return ds4_session_argmax_excluding(session->ptr, excluded_id);
 }
 
 MOONBIT_FFI_EXPORT
@@ -477,12 +413,6 @@ int32_t moonbit_ds4_session_sample(
   float min_p,
   MoonBitDS4Sampler *sampler
 ) {
-  if (!session || !session->ptr || !sampler) {
-    if (session) {
-      session_set_error(session, "session or sampler is null");
-    }
-    return -1;
-  }
   return ds4_session_sample(
     session->ptr,
     temperature,
@@ -495,36 +425,28 @@ int32_t moonbit_ds4_session_sample(
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_session_invalidate(MoonBitDS4Session *session) {
-  if (session && session->ptr) {
-    ds4_session_invalidate(session->ptr);
-  }
+  ds4_session_invalidate(session->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 void moonbit_ds4_session_rewind(MoonBitDS4Session *session, int32_t pos) {
-  if (session && session->ptr) {
-    ds4_session_rewind(session->ptr, pos);
-  }
+  ds4_session_rewind(session->ptr, pos);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_pos(MoonBitDS4Session *session) {
-  return session && session->ptr ? ds4_session_pos(session->ptr) : 0;
+  return ds4_session_pos(session->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_ctx(MoonBitDS4Session *session) {
-  return session && session->ptr ? ds4_session_ctx(session->ptr) : 0;
+  return ds4_session_ctx(session->ptr);
 }
 
 MOONBIT_FFI_EXPORT
 MoonBitDS4Tokens *moonbit_ds4_session_tokens(MoonBitDS4Session *session) {
   MoonBitDS4Tokens *out = tokens_new_raw();
-  if (session && session->ptr) {
-    const ds4_tokens *tokens = ds4_session_tokens(session->ptr);
-    if (tokens) {
-      ds4_tokens_copy(&out->value, tokens);
-    }
-  }
+  const ds4_tokens *tokens = ds4_session_tokens(session->ptr);
+  ds4_tokens_copy(&out->value, tokens);
   return out;
 }

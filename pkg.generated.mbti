@@ -76,7 +76,6 @@ pub fn Session::argmax_excluding(Self, Int) -> Int
 pub fn Session::ctx(Self) -> Int
 pub fn Session::eval(Self, Int) -> Unit raise Ds4Error
 pub fn Session::invalidate(Self) -> Unit
-pub fn Session::last_error(Self) -> String
 pub fn Session::pos(Self) -> Int
 pub fn Session::rewind(Self, Int) -> Unit
 pub fn Session::sample(Self, Sampler, temperature? : Float, top_k? : Int, top_p? : Float, min_p? : Float) -> Int
