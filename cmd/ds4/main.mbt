@@ -160,16 +160,9 @@ fn ThinkRenderer::finish(self : ThinkRenderer) -> String {
 }
 
 ///|
-fn default_model_path() -> String {
-  let home = @env.get_env_var("HOME").unwrap_or("/Users/dii")
-  home +
-  "/Workspace/ds4/gguf/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf"
-}
-
-///|
 fn default_config() -> Config {
   {
-    model_path: default_model_path(),
+    model_path: "",
     prompt: "",
     system: "You are a helpful assistant",
     ctx_size: 32768,
@@ -265,6 +258,7 @@ fn cli_command() -> @argparse.Command {
         short='m',
         long="model",
         about="GGUF model path.",
+        required=true,
         allow_hyphen_values=true,
       ),
       @argparse.OptionArg::new(
