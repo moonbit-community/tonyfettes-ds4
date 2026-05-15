@@ -225,8 +225,12 @@ type Tokens
 type Sampler
 
 ///|
-#borrow(model_path, mtp_path, directional_steering_file)
+extern "c" fn ds4_engine_new() -> Engine = "moonbit_ds4_engine_new"
+
+///|
+#borrow(engine, model_path, mtp_path, directional_steering_file)
 extern "c" fn ds4_engine_open(
+  engine : Engine,
   model_path : Bytes,
   mtp_path : Bytes,
   backend : Int,
@@ -238,25 +242,13 @@ extern "c" fn ds4_engine_open(
   directional_steering_ffn : Float,
   warm_weights : Bool,
   quality : Bool,
-) -> Engine = "moonbit_ds4_engine_open"
-
-///|
-#borrow(engine)
-extern "c" fn ds4_engine_status(engine : Engine) -> Int = "moonbit_ds4_engine_status"
-
-///|
-pub fn Engine::status(self : Engine) -> Int {
-  ds4_engine_status(self)
-}
-
-///|
-pub fn Engine::is_open(self : Engine) -> Bool {
-  self.status() == 0
-}
+) -> Int = "moonbit_ds4_engine_open"
 
 ///|
 pub fn Engine::open(config : EngineConfig) -> Engine raise Ds4Error {
-  let engine = ds4_engine_open(
+  let engine = ds4_engine_new()
+  let status = ds4_engine_open(
+    engine,
     @utf8.encode(config.model_path),
     @utf8.encode(config.mtp_path),
     config.backend.to_int(),
@@ -269,7 +261,6 @@ pub fn Engine::open(config : EngineConfig) -> Engine raise Ds4Error {
     config.warm_weights,
     config.quality,
   )
-  let status = engine.status()
   if status != 0 {
     raise Ds4Error::OpenFailed(status)
   }
@@ -526,20 +517,10 @@ pub fn Engine::chat_append_assistant_prefix(
 }
 
 ///|
-#borrow(engine)
-extern "c" fn ds4_session_create(engine : Engine, ctx_size : Int) -> Session = "moonbit_ds4_session_create"
-
-///|
-#borrow(session)
-extern "c" fn ds4_session_status(session : Session) -> Int = "moonbit_ds4_session_status"
+extern "c" fn ds4_session_new() -> Session = "moonbit_ds4_session_new"
 
 ///|
 const DS4_ERROR_BUFFER_SIZE : Int = 1024
-
-///|
-pub fn Session::status(self : Session) -> Int {
-  ds4_session_status(self)
-}
 
 ///|
 fn new_error_buffer() -> FixedArray[Byte] {
@@ -558,13 +539,21 @@ pub fn Engine::create_session(
   self : Engine,
   ctx_size : Int,
 ) -> Session raise Ds4Error {
-  let session = ds4_session_create(self, ctx_size)
-  let status = session.status()
+  let session = ds4_session_new()
+  let status = ds4_session_create(session, self, ctx_size)
   if status != 0 {
     raise Ds4Error::SessionCreateFailed(status, "")
   }
   session
 }
+
+///|
+#borrow(session, engine)
+extern "c" fn ds4_session_create(
+  session : Session,
+  engine : Engine,
+  ctx_size : Int,
+) -> Int = "moonbit_ds4_session_create"
 
 ///|
 #borrow(session, prompt, err)

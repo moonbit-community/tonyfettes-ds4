@@ -41,11 +41,9 @@ pub fn Engine::chat_begin(Self, Tokens) -> Unit
 pub fn Engine::create_session(Self, Int) -> Session raise Ds4Error
 pub fn Engine::encode_chat_prompt(Self, system? : StringView, StringView, think_mode? : ThinkMode) -> Tokens
 pub fn Engine::has_mtp(Self) -> Bool
-pub fn Engine::is_open(Self) -> Bool
 pub fn Engine::mtp_draft_tokens(Self) -> Int
 pub fn Engine::open(EngineConfig) -> Self raise Ds4Error
 pub fn Engine::routed_quant_bits(Self) -> Int
-pub fn Engine::status(Self) -> Int
 pub fn Engine::summary(Self) -> Unit
 pub fn Engine::token_eos(Self) -> Int
 pub fn Engine::token_text(Self, Int) -> String
@@ -79,7 +77,6 @@ pub fn Session::invalidate(Self) -> Unit
 pub fn Session::pos(Self) -> Int
 pub fn Session::rewind(Self, Int) -> Unit
 pub fn Session::sample(Self, Sampler, temperature? : Float, top_k? : Int, top_p? : Float, min_p? : Float) -> Int
-pub fn Session::status(Self) -> Int
 pub fn Session::sync(Self, Tokens) -> Unit raise Ds4Error
 pub fn Session::tokens(Self) -> Tokens
 

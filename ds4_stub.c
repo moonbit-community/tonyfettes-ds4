@@ -7,13 +7,11 @@
 
 typedef struct {
   ds4_engine *ptr;
-  int32_t status;
 } MoonBitDS4Engine;
 
 typedef struct {
   ds4_session *ptr;
   MoonBitDS4Engine *engine;
-  int32_t status;
 } MoonBitDS4Session;
 
 typedef struct {
@@ -91,7 +89,6 @@ static MoonBitDS4Engine *engine_new_raw(void) {
     sizeof(MoonBitDS4Engine)
   );
   engine->ptr = NULL;
-  engine->status = 1;
   return engine;
 }
 
@@ -102,7 +99,6 @@ static MoonBitDS4Session *session_new_raw(void) {
   );
   session->ptr = NULL;
   session->engine = NULL;
-  session->status = 1;
   return session;
 }
 
@@ -181,7 +177,13 @@ uint32_t moonbit_ds4_context_memory_comp_cap(int32_t backend, int32_t ctx_size) 
 }
 
 MOONBIT_FFI_EXPORT
-MoonBitDS4Engine *moonbit_ds4_engine_open(
+MoonBitDS4Engine *moonbit_ds4_engine_new(void) {
+  return engine_new_raw();
+}
+
+MOONBIT_FFI_EXPORT
+int32_t moonbit_ds4_engine_open(
+  MoonBitDS4Engine *engine,
   moonbit_bytes_t model_path,
   moonbit_bytes_t mtp_path,
   int32_t backend,
@@ -194,7 +196,6 @@ MoonBitDS4Engine *moonbit_ds4_engine_open(
   int32_t warm_weights,
   int32_t quality
 ) {
-  MoonBitDS4Engine *engine = engine_new_raw();
   ds4_engine_options opt = {0};
   opt.model_path = (const char *)model_path;
   opt.mtp_path = (const char *)mtp_path;
@@ -207,13 +208,7 @@ MoonBitDS4Engine *moonbit_ds4_engine_open(
   opt.directional_steering_ffn = directional_steering_ffn;
   opt.warm_weights = warm_weights != 0;
   opt.quality = quality != 0;
-  engine->status = ds4_engine_open(&engine->ptr, &opt);
-  return engine;
-}
-
-MOONBIT_FFI_EXPORT
-int32_t moonbit_ds4_engine_status(MoonBitDS4Engine *engine) {
-  return engine->status;
+  return ds4_engine_open(&engine->ptr, &opt);
 }
 
 MOONBIT_FFI_EXPORT
@@ -359,19 +354,22 @@ void moonbit_ds4_engine_chat_append_assistant_prefix(
 }
 
 MOONBIT_FFI_EXPORT
-MoonBitDS4Session *moonbit_ds4_session_create(MoonBitDS4Engine *engine, int32_t ctx_size) {
-  MoonBitDS4Session *session = session_new_raw();
-  session->status = ds4_session_create(&session->ptr, engine->ptr, ctx_size);
-  if (session->status == 0) {
-    session->engine = engine;
-    moonbit_incref(engine);
-  }
-  return session;
+MoonBitDS4Session *moonbit_ds4_session_new(void) {
+  return session_new_raw();
 }
 
 MOONBIT_FFI_EXPORT
-int32_t moonbit_ds4_session_status(MoonBitDS4Session *session) {
-  return session->status;
+int32_t moonbit_ds4_session_create(
+  MoonBitDS4Session *session,
+  MoonBitDS4Engine *engine,
+  int32_t ctx_size
+) {
+  int32_t status = ds4_session_create(&session->ptr, engine->ptr, ctx_size);
+  if (status == 0) {
+    session->engine = engine;
+    moonbit_incref(engine);
+  }
+  return status;
 }
 
 MOONBIT_FFI_EXPORT
