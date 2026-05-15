@@ -184,57 +184,35 @@ fn default_config() -> Config {
 }
 
 ///|
-fn usage() -> Unit {
-  let text =
-    #|Usage: ds4 [options] -p PROMPT
-    #|
-    #|Build:
-    #|  moon build cmd/ds4 --target native
-    #|  _build/native/debug/build/cmd/ds4/ds4.exe -p PROMPT
-    #|
-    #|Options:
-    #|  -p, --prompt TEXT    Prompt to run.
-    #|  -m, --model FILE     GGUF model path.
-    #|  -c, --ctx N          Session context size. Default: 32768
-    #|  -n, --tokens N       Maximum generated tokens. Default: 50000
-    #|  --temp F             Sampling temperature. 0 is greedy. Default: 1
-    #|  --top-p F            Nucleus sampling probability. Default: 1
-    #|  --seed N             Sampling seed. Default: time-based
-    #|  --system TEXT        System prompt. Default: You are a helpful assistant
-    #|  --backend NAME       Select backend: metal, cuda, or cpu.
-    #|  --metal              Use Metal backend.
-    #|  --cuda               Use CUDA backend.
-    #|  --cpu                Use CPU backend.
-    #|  --think              Use normal thinking mode. Default.
-    #|  --think-max          Use Think Max when context is large enough.
-    #|  --nothink            Disable thinking mode.
-    #|  --inspect            Load the model and print its DS4 summary only.
-    #|  -h, --help           Show this help.
-    #|
-    #|Default model:
-    #|  ~/Workspace/ds4/gguf/DeepSeek-V4-Flash-IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix.gguf
-    #|
-  println(text)
+priv suberror CliError {
+  Message(String)
 }
 
 ///|
-fn parse_positive_int(value : String, opt : String) -> Int {
+impl Show for CliError with output(self : CliError, logger) {
+  match self {
+    Message(message) => logger.write_string(message)
+  }
+}
+
+///|
+fn parse_positive_int(value : String, opt : String) -> Int raise CliError {
   let parsed = @string.parse_int(value) catch {
-    _ => abort("ds4: invalid value for " + opt + ": " + value)
+    _ => raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   if parsed <= 0 {
-    abort("ds4: invalid value for " + opt + ": " + value)
+    raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   parsed
 }
 
 ///|
-fn parse_uint64(value : String, opt : String) -> UInt64 {
+fn parse_uint64(value : String, opt : String) -> UInt64 raise CliError {
   let parsed = @string.parse_uint64(value) catch {
-    _ => abort("ds4: invalid value for " + opt + ": " + value)
+    _ => raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   if parsed == 0 {
-    abort("ds4: invalid value for " + opt + ": " + value)
+    raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   parsed
 }
@@ -245,18 +223,18 @@ fn parse_float_range(
   opt : String,
   min : Float,
   max : Float,
-) -> Float {
+) -> Float raise CliError {
   let parsed = Float::from_double(@string.parse_double(value)) catch {
-    _ => abort("ds4: invalid value for " + opt + ": " + value)
+    _ => raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   if parsed < min || parsed > max {
-    abort("ds4: invalid value for " + opt + ": " + value)
+    raise CliError::Message("ds4: invalid value for " + opt + ": " + value)
   }
   parsed
 }
 
 ///|
-fn parse_backend(value : String) -> @ds4lib.Backend {
+fn parse_backend(value : String) -> @ds4lib.Backend raise CliError {
   if value == "metal" {
     @ds4lib.Backend::metal()
   } else if value == "cuda" {
@@ -264,96 +242,207 @@ fn parse_backend(value : String) -> @ds4lib.Backend {
   } else if value == "cpu" {
     @ds4lib.Backend::cpu()
   } else {
-    abort("ds4: invalid backend: " + value)
+    raise CliError::Message("ds4: invalid backend: " + value)
   }
 }
 
 ///|
-fn need_arg(args : Array[String], index : Int, opt : String) -> String {
-  if index + 1 >= args.length() {
-    abort("ds4: " + opt + " needs an argument")
-  }
-  args[index + 1]
+fn cli_command() -> @argparse.Command {
+  @argparse.Command::new(
+    "ds4",
+    about="Run DeepSeek V4 Flash through the DS4 MoonBit binding.",
+    arg_required_else_help=true,
+    options=[
+      @argparse.OptionArg::new(
+        "prompt",
+        short='p',
+        long="prompt",
+        about="Prompt to run.",
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "model",
+        short='m',
+        long="model",
+        about="GGUF model path.",
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "ctx",
+        short='c',
+        long="ctx",
+        about="Session context size.",
+        default_values=["32768"],
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "tokens",
+        short='n',
+        long="tokens",
+        about="Maximum generated tokens.",
+        default_values=["50000"],
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "temp",
+        long="temp",
+        about="Sampling temperature. 0 is greedy.",
+        default_values=["1"],
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "top_p",
+        long="top-p",
+        about="Nucleus sampling probability.",
+        default_values=["1"],
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "seed",
+        long="seed",
+        about="Sampling seed. Omit for time-based.",
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "system",
+        long="system",
+        about="System prompt.",
+        default_values=["You are a helpful assistant"],
+        allow_hyphen_values=true,
+      ),
+      @argparse.OptionArg::new(
+        "backend",
+        long="backend",
+        about="Select backend: metal, cuda, or cpu.",
+      ),
+    ],
+    flags=[
+      @argparse.FlagArg::new("metal", long="metal", about="Use Metal backend."),
+      @argparse.FlagArg::new("cuda", long="cuda", about="Use CUDA backend."),
+      @argparse.FlagArg::new("cpu", long="cpu", about="Use CPU backend."),
+      @argparse.FlagArg::new(
+        "think",
+        long="think",
+        about="Use normal thinking mode.",
+      ),
+      @argparse.FlagArg::new(
+        "think_max",
+        long="think-max",
+        about="Use Think Max when context is large enough.",
+      ),
+      @argparse.FlagArg::new(
+        "nothink",
+        long="nothink",
+        about="Disable thinking mode.",
+      ),
+      @argparse.FlagArg::new(
+        "inspect",
+        long="inspect",
+        about="Load the model and print its DS4 summary only.",
+      ),
+    ],
+    groups=[
+      @argparse.ArgGroup::new("input", required=true, multiple=true, args=[
+        "prompt", "inspect",
+      ]),
+      @argparse.ArgGroup::new("backend", multiple=false, args=[
+        "backend", "metal", "cuda", "cpu",
+      ]),
+      @argparse.ArgGroup::new("thinking", multiple=false, args=[
+        "think", "think_max", "nothink",
+      ]),
+    ],
+  )
 }
 
 ///|
-fn parse_args(args : Array[String]) -> Config? {
+fn option_value(matches : @argparse.Matches, name : String) -> String? {
+  match matches.values.get(name) {
+    Some(values) => values.get(0)
+    None => None
+  }
+}
+
+///|
+fn flag_set(matches : @argparse.Matches, name : String) -> Bool {
+  match matches.flags.get(name) {
+    Some(value) => value
+    None => false
+  }
+}
+
+///|
+fn config_from_matches(matches : @argparse.Matches) -> Config raise CliError {
   let mut config = default_config()
-  let mut i = 1
-  while i < args.length() {
-    let arg = args[i]
-    if arg == "-h" || arg == "--help" {
-      return None
-    } else if arg == "-p" || arg == "--prompt" {
-      config = { ..config, prompt: need_arg(args, i, arg) }
-      i = i + 1
-    } else if arg == "-m" || arg == "--model" {
-      config = { ..config, model_path: need_arg(args, i, arg) }
-      i = i + 1
-    } else if arg == "-c" || arg == "--ctx" {
-      let value = need_arg(args, i, arg)
-      config = { ..config, ctx_size: parse_positive_int(value, arg) }
-      i = i + 1
-    } else if arg == "-n" || arg == "--tokens" {
-      let value = need_arg(args, i, arg)
-      config = { ..config, n_predict: parse_positive_int(value, arg) }
-      i = i + 1
-    } else if arg == "--temp" {
-      let value = need_arg(args, i, arg)
-      config = {
-        ..config,
-        temperature: parse_float_range(value, arg, 0.0, 100.0),
-      }
-      i = i + 1
-    } else if arg == "--top-p" {
-      let value = need_arg(args, i, arg)
-      config = { ..config, top_p: parse_float_range(value, arg, 0.0, 1.0) }
-      i = i + 1
-    } else if arg == "--seed" {
-      let value = need_arg(args, i, arg)
-      config = { ..config, seed: parse_uint64(value, arg) }
-      i = i + 1
-    } else if arg == "--system" {
-      config = { ..config, system: need_arg(args, i, arg) }
-      i = i + 1
-    } else if arg == "--backend" {
-      let value = need_arg(args, i, arg)
-      config = { ..config, backend: parse_backend(value) }
-      i = i + 1
-    } else if arg == "--metal" {
-      config = { ..config, backend: @ds4lib.Backend::metal() }
-    } else if arg == "--cuda" {
-      config = { ..config, backend: @ds4lib.Backend::cuda() }
-    } else if arg == "--cpu" {
-      config = { ..config, backend: @ds4lib.Backend::cpu() }
-    } else if arg == "--think" {
-      config = { ..config, think_mode: @ds4lib.ThinkMode::high() }
-    } else if arg == "--think-max" {
-      config = { ..config, think_mode: @ds4lib.ThinkMode::max() }
-    } else if arg == "--nothink" {
-      config = { ..config, think_mode: @ds4lib.ThinkMode::none() }
-    } else if arg == "--inspect" {
-      config = { ..config, inspect: true }
-    } else {
-      abort("ds4: unknown option: " + arg)
-    }
-    i = i + 1
+  if option_value(matches, "prompt") is Some(value) {
+    config = { ..config, prompt: value }
   }
-  Some(config)
+  if option_value(matches, "model") is Some(value) {
+    config = { ..config, model_path: value }
+  }
+  if option_value(matches, "ctx") is Some(value) {
+    config = { ..config, ctx_size: parse_positive_int(value, "--ctx") }
+  }
+  if option_value(matches, "tokens") is Some(value) {
+    config = { ..config, n_predict: parse_positive_int(value, "--tokens") }
+  }
+  if option_value(matches, "temp") is Some(value) {
+    config = {
+      ..config,
+      temperature: parse_float_range(value, "--temp", 0.0, 100.0),
+    }
+  }
+  if option_value(matches, "top_p") is Some(value) {
+    config = { ..config, top_p: parse_float_range(value, "--top-p", 0.0, 1.0) }
+  }
+  if option_value(matches, "seed") is Some(value) {
+    config = { ..config, seed: parse_uint64(value, "--seed") }
+  }
+  if option_value(matches, "system") is Some(value) {
+    config = { ..config, system: value }
+  }
+  if option_value(matches, "backend") is Some(value) {
+    config = { ..config, backend: parse_backend(value) }
+  }
+  if flag_set(matches, "metal") {
+    config = { ..config, backend: @ds4lib.Backend::metal() }
+  }
+  if flag_set(matches, "cuda") {
+    config = { ..config, backend: @ds4lib.Backend::cuda() }
+  }
+  if flag_set(matches, "cpu") {
+    config = { ..config, backend: @ds4lib.Backend::cpu() }
+  }
+  if flag_set(matches, "think") {
+    config = { ..config, think_mode: @ds4lib.ThinkMode::high() }
+  }
+  if flag_set(matches, "think_max") {
+    config = { ..config, think_mode: @ds4lib.ThinkMode::max() }
+  }
+  if flag_set(matches, "nothink") {
+    config = { ..config, think_mode: @ds4lib.ThinkMode::none() }
+  }
+  if flag_set(matches, "inspect") {
+    config = { ..config, inspect: true }
+  }
+  config
 }
 
 ///|
-async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
+fn parse_args(args : Array[String]) -> Config raise Error {
+  let argv = if args.length() > 0 { args[1:] } else { args[:] }
+  let matches = cli_command().parse(argv~, env=@env.get_env_vars())
+  config_from_matches(matches)
+}
+
+///|
+async fn generate(config : Config) -> Unit raise Error {
   let engine = @ds4lib.Engine::open(
     @ds4lib.EngineConfig::new(config.model_path, backend=config.backend),
   )
   if config.inspect {
     engine.summary()
     return
-  }
-  if config.prompt == "" {
-    usage()
-    abort("ds4: missing prompt")
   }
   let think_mode = config.think_mode.for_context(config.ctx_size)
   let prompt = engine.encode_chat_prompt(
@@ -391,55 +480,23 @@ async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
     if token == eos || token < 0 {
       break
     }
-    stdout.write(renderer.render_piece(engine.token_text(token))) catch {
-      _ => abort("ds4: stdout write failed")
-    }
-    stdout.flush() catch {
-      _ => abort("ds4: stdout flush failed")
-    }
+    stdout.write(renderer.render_piece(engine.token_text(token)))
+    stdout.flush()
     session.eval(token)
     generated = generated + 1
   }
   let tail = renderer.finish()
   if tail != "" {
-    stdout.write(tail) catch {
-      _ => abort("ds4: stdout write failed")
-    }
+    stdout.write(tail)
   }
   if !renderer.last_output_newline {
-    stdout.write("\n") catch {
-      _ => abort("ds4: stdout write failed")
-    }
+    stdout.write("\n")
   }
-  stdout.flush() catch {
-    _ => abort("ds4: stdout flush failed")
-  }
+  stdout.flush()
 }
 
 ///|
-async fn main {
-  match parse_args(@env.args()) {
-    None => usage()
-    Some(config) =>
-      generate(config) catch {
-        @ds4lib.Ds4Error::OpenFailed(status) =>
-          abort("ds4: failed to open model, status " + status.to_string())
-        @ds4lib.Ds4Error::SessionCreateFailed(status, message) =>
-          abort(
-            "ds4: failed to create session, status " +
-            status.to_string() +
-            ": " +
-            message,
-          )
-        @ds4lib.Ds4Error::OperationFailed(op~, status~, message~) =>
-          abort(
-            "ds4: " +
-            op +
-            " failed, status " +
-            status.to_string() +
-            ": " +
-            message,
-          )
-      }
-  }
+async fn main raise Error {
+  let config = parse_args(@env.args())
+  generate(config)
 }
