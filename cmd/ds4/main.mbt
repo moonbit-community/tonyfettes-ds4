@@ -206,7 +206,7 @@ fn output_text(raw : String, think_mode : @ds4lib.ThinkMode) -> String {
 }
 
 ///|
-fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
+async fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
   let engine = @ds4lib.Engine::open(
     @ds4lib.EngineConfig::new(config.model_path, backend=config.backend),
   )
@@ -243,7 +243,7 @@ fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
       config.seed
     },
   )
-  let out = StringBuilder()
+  let stdout = @io.BufferedWriter::new(@stdio.stdout, size=4096)
   while generated < max_tokens {
     let token = session.sample(
       sampler,
@@ -253,15 +253,25 @@ fn generate(config : Config) -> Unit raise @ds4lib.Ds4Error {
     if token == eos || token < 0 {
       break
     }
-    out.write_string(engine.token_text(token))
+    stdout.write(output_text(engine.token_text(token), think_mode)) catch {
+      _ => abort("ds4: stdout write failed")
+    }
+    stdout.flush() catch {
+      _ => abort("ds4: stdout flush failed")
+    }
     session.eval(token)
     generated = generated + 1
   }
-  println(output_text(out.to_string(), think_mode))
+  stdout.write("\n") catch {
+    _ => abort("ds4: stdout write failed")
+  }
+  stdout.flush() catch {
+    _ => abort("ds4: stdout flush failed")
+  }
 }
 
 ///|
-fn main {
+async fn main {
   match parse_args(@env.args()) {
     None => usage()
     Some(config) =>
