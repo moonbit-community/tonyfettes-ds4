@@ -222,6 +222,9 @@ type Session
 type Tokens
 
 ///|
+type Sampler
+
+///|
 #borrow(model_path, mtp_path, directional_steering_file)
 extern "c" fn engine_open_ffi(
   model_path : Bytes,
@@ -333,6 +336,14 @@ extern "c" fn tokens_new_ffi() -> Tokens = "moonbit_ds4_tokens_new"
 ///|
 pub fn Tokens::new() -> Tokens {
   tokens_new_ffi()
+}
+
+///|
+extern "c" fn sampler_new_ffi(seed : UInt64) -> Sampler = "moonbit_ds4_sampler_new"
+
+///|
+pub fn Sampler::new(seed : UInt64) -> Sampler {
+  sampler_new_ffi(seed)
 }
 
 ///|
@@ -600,6 +611,29 @@ extern "c" fn session_argmax_excluding_ffi(
 ///|
 pub fn Session::argmax_excluding(self : Session, excluded_id : Int) -> Int {
   session_argmax_excluding_ffi(self, excluded_id)
+}
+
+///|
+#borrow(session, sampler)
+extern "c" fn session_sample_ffi(
+  session : Session,
+  temperature : Float,
+  top_k : Int,
+  top_p : Float,
+  min_p : Float,
+  sampler : Sampler,
+) -> Int = "moonbit_ds4_session_sample"
+
+///|
+pub fn Session::sample(
+  self : Session,
+  sampler : Sampler,
+  temperature? : Float = 1.0,
+  top_k? : Int = 0,
+  top_p? : Float = 1.0,
+  min_p? : Float = 0.0,
+) -> Int {
+  session_sample_ffi(self, temperature, top_k, top_p, min_p, sampler)
 }
 
 ///|

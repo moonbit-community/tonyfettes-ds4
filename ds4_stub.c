@@ -21,6 +21,10 @@ typedef struct {
   ds4_tokens value;
 } MoonBitDS4Tokens;
 
+typedef struct {
+  uint64_t state;
+} MoonBitDS4Sampler;
+
 static const char *mb_cstr(moonbit_bytes_t bytes) {
   return bytes ? (const char *)bytes : "";
 }
@@ -65,6 +69,10 @@ static void tokens_finalize(void *obj) {
   ds4_tokens_free(&tokens->value);
 }
 
+static void sampler_finalize(void *obj) {
+  (void)obj;
+}
+
 static MoonBitDS4Tokens *tokens_new_raw(void) {
   MoonBitDS4Tokens *tokens = (MoonBitDS4Tokens *)moonbit_make_external_object(
     tokens_finalize,
@@ -74,6 +82,15 @@ static MoonBitDS4Tokens *tokens_new_raw(void) {
   tokens->value.len = 0;
   tokens->value.cap = 0;
   return tokens;
+}
+
+static MoonBitDS4Sampler *sampler_new_raw(uint64_t seed) {
+  MoonBitDS4Sampler *sampler = (MoonBitDS4Sampler *)moonbit_make_external_object(
+    sampler_finalize,
+    sizeof(MoonBitDS4Sampler)
+  );
+  sampler->state = seed;
+  return sampler;
 }
 
 static MoonBitDS4Engine *engine_new_raw(void) {
@@ -257,6 +274,11 @@ moonbit_bytes_t moonbit_ds4_engine_token_text(MoonBitDS4Engine *engine, int32_t 
 MOONBIT_FFI_EXPORT
 MoonBitDS4Tokens *moonbit_ds4_tokens_new(void) {
   return tokens_new_raw();
+}
+
+MOONBIT_FFI_EXPORT
+MoonBitDS4Sampler *moonbit_ds4_sampler_new(uint64_t seed) {
+  return sampler_new_raw(seed);
 }
 
 MOONBIT_FFI_EXPORT
@@ -444,6 +466,31 @@ int32_t moonbit_ds4_session_argmax(MoonBitDS4Session *session) {
 MOONBIT_FFI_EXPORT
 int32_t moonbit_ds4_session_argmax_excluding(MoonBitDS4Session *session, int32_t excluded_id) {
   return session && session->ptr ? ds4_session_argmax_excluding(session->ptr, excluded_id) : -1;
+}
+
+MOONBIT_FFI_EXPORT
+int32_t moonbit_ds4_session_sample(
+  MoonBitDS4Session *session,
+  float temperature,
+  int32_t top_k,
+  float top_p,
+  float min_p,
+  MoonBitDS4Sampler *sampler
+) {
+  if (!session || !session->ptr || !sampler) {
+    if (session) {
+      session_set_error(session, "session or sampler is null");
+    }
+    return -1;
+  }
+  return ds4_session_sample(
+    session->ptr,
+    temperature,
+    top_k,
+    top_p,
+    min_p,
+    &sampler->state
+  );
 }
 
 MOONBIT_FFI_EXPORT

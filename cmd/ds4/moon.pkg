@@ -1,0 +1,10 @@
+import {
+  "feihaoxiang/ds4" @ds4lib,
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+options(
+  "is-main": true,
+  targets: { "main.mbt": [ "native" ] },
+)

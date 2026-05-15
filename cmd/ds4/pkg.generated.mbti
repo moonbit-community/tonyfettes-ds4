@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "feihaoxiang/ds4/cmd/ds4"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Config
+
+// Type aliases
+
+// Traits
+

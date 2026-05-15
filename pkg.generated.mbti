@@ -67,6 +67,9 @@ pub(all) struct EngineConfig {
 } derive(Eq, @debug.Debug)
 pub fn EngineConfig::new(String, backend? : Backend, mtp_path? : String, n_threads? : Int, mtp_draft_tokens? : Int, mtp_margin? : Float, directional_steering_file? : String, directional_steering_attn? : Float, directional_steering_ffn? : Float, warm_weights? : Bool, quality? : Bool) -> Self
 
+type Sampler
+pub fn Sampler::new(UInt64) -> Self
+
 type Session
 pub fn Session::argmax(Self) -> Int
 pub fn Session::argmax_excluding(Self, Int) -> Int
@@ -76,6 +79,7 @@ pub fn Session::invalidate(Self) -> Unit
 pub fn Session::last_error(Self) -> String
 pub fn Session::pos(Self) -> Int
 pub fn Session::rewind(Self, Int) -> Unit
+pub fn Session::sample(Self, Sampler, temperature? : Float, top_k? : Int, top_p? : Float, min_p? : Float) -> Int
 pub fn Session::status(Self) -> Int
 pub fn Session::sync(Self, Tokens) -> Unit raise Ds4Error
 pub fn Session::tokens(Self) -> Tokens
