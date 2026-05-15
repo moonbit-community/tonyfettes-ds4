@@ -1,0 +1,106 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "feihaoxiang/ds4"
+
+import {
+  "moonbitlang/core/debug",
+}
+
+// Values
+
+// Errors
+pub(all) suberror Ds4Error {
+  OpenFailed(Int)
+  SessionCreateFailed(Int, String)
+  OperationFailed(op~ : String, status~ : Int, message~ : String)
+} derive(Eq, @debug.Debug)
+
+// Types and methods
+type Backend derive(Eq, @debug.Debug)
+pub fn Backend::context_memory_estimate(Self, Int) -> ContextMemory
+pub fn Backend::cpu() -> Self
+pub fn Backend::cuda() -> Self
+pub fn Backend::default() -> Self
+pub fn Backend::metal() -> Self
+pub fn Backend::name(Self) -> String
+
+pub(all) struct ContextMemory {
+  total_bytes : UInt64
+  raw_bytes : UInt64
+  compressed_bytes : UInt64
+  scratch_bytes : UInt64
+  prefill_cap : UInt
+  raw_cap : UInt
+  comp_cap : UInt
+} derive(Eq, @debug.Debug)
+
+type Engine
+pub fn Engine::chat_append_assistant_prefix(Self, Tokens, think_mode? : ThinkMode) -> Unit
+pub fn Engine::chat_append_max_effort_prefix(Self, Tokens) -> Unit
+pub fn Engine::chat_append_message(Self, Tokens, role? : StringView, StringView) -> Unit
+pub fn Engine::chat_begin(Self, Tokens) -> Unit
+pub fn Engine::create_session(Self, Int) -> Session raise Ds4Error
+pub fn Engine::encode_chat_prompt(Self, system? : StringView, StringView, think_mode? : ThinkMode) -> Tokens
+pub fn Engine::has_mtp(Self) -> Bool
+pub fn Engine::is_open(Self) -> Bool
+pub fn Engine::mtp_draft_tokens(Self) -> Int
+pub fn Engine::open(EngineConfig) -> Self raise Ds4Error
+pub fn Engine::routed_quant_bits(Self) -> Int
+pub fn Engine::status(Self) -> Int
+pub fn Engine::summary(Self) -> Unit
+pub fn Engine::token_eos(Self) -> Int
+pub fn Engine::token_text(Self, Int) -> String
+pub fn Engine::tokenize_rendered_chat(Self, StringView) -> Tokens
+pub fn Engine::tokenize_text(Self, StringView) -> Tokens
+
+pub(all) struct EngineConfig {
+  model_path : String
+  mtp_path : String
+  backend : Backend
+  n_threads : Int
+  mtp_draft_tokens : Int
+  mtp_margin : Float
+  directional_steering_file : String
+  directional_steering_attn : Float
+  directional_steering_ffn : Float
+  warm_weights : Bool
+  quality : Bool
+} derive(Eq, @debug.Debug)
+pub fn EngineConfig::new(String, backend? : Backend, mtp_path? : String, n_threads? : Int, mtp_draft_tokens? : Int, mtp_margin? : Float, directional_steering_file? : String, directional_steering_attn? : Float, directional_steering_ffn? : Float, warm_weights? : Bool, quality? : Bool) -> Self
+
+type Session
+pub fn Session::argmax(Self) -> Int
+pub fn Session::argmax_excluding(Self, Int) -> Int
+pub fn Session::ctx(Self) -> Int
+pub fn Session::eval(Self, Int) -> Unit raise Ds4Error
+pub fn Session::invalidate(Self) -> Unit
+pub fn Session::last_error(Self) -> String
+pub fn Session::pos(Self) -> Int
+pub fn Session::rewind(Self, Int) -> Unit
+pub fn Session::status(Self) -> Int
+pub fn Session::sync(Self, Tokens) -> Unit raise Ds4Error
+pub fn Session::tokens(Self) -> Tokens
+
+type ThinkMode derive(Eq, @debug.Debug)
+pub fn ThinkMode::enabled(Self) -> Bool
+pub fn ThinkMode::for_context(Self, Int) -> Self
+pub fn ThinkMode::high() -> Self
+pub fn ThinkMode::max() -> Self
+pub fn ThinkMode::max_min_context() -> UInt
+pub fn ThinkMode::max_prefix() -> String
+pub fn ThinkMode::name(Self) -> String
+pub fn ThinkMode::none() -> Self
+
+type Tokens
+pub fn Tokens::copy(Self) -> Self
+pub fn Tokens::get(Self, Int) -> Int?
+pub fn Tokens::length(Self) -> Int
+pub fn Tokens::new() -> Self
+pub fn Tokens::op_get(Self, Int) -> Int
+pub fn Tokens::push(Self, Int) -> Unit
+pub fn Tokens::starts_with(Self, Self) -> Bool
+pub fn Tokens::to_fixed_array(Self) -> FixedArray[Int]
+
+// Type aliases
+
+// Traits
+

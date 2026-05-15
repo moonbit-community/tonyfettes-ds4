@@ -1,0 +1,11 @@
+{
+  "name": "feihaoxiang/ds4",
+  "version": "0.1.0",
+  "readme": "README.md",
+  "license": "MIT",
+  "keywords": ["ds4", "ffi", "native"],
+  "description": "MoonBit native bindings for the local DwarfStar 4 engine",
+  "preferred-target": "native",
+  "--moonbit-unstable-prebuild": "build.js",
+  "deps": {}
+}
