@@ -27,10 +27,34 @@ struct ReadRequest {
 }
 
 ///|
+struct DsmlParam {
+  name : String
+  value : String
+}
+
+///|
 const TOOL_BEGIN : String = "<tool:"
 
 ///|
 const TOOL_END : String = "</tool>"
+
+///|
+const DSML_TOOL_CALLS_START : String = "<｜DSML｜tool_calls>"
+
+///|
+const DSML_TOOL_CALLS_END : String = "</｜DSML｜tool_calls>"
+
+///|
+const DSML_INVOKE_START : String = "<｜DSML｜invoke"
+
+///|
+const DSML_INVOKE_END : String = "</｜DSML｜invoke>"
+
+///|
+const DSML_PARAM_START : String = "<｜DSML｜parameter"
+
+///|
+const DSML_PARAM_END : String = "</｜DSML｜parameter>"
 
 ///|
 const ANSI_THINK : String = "\u001b[90m"
@@ -182,39 +206,44 @@ fn ThinkRenderer::finish(self : ThinkRenderer) -> String {
 const SYSTEM_PROMPT : String =
   #|You are ds4mbt, a micro coding agent specialized in MoonBit codebases.
   #|
-  #|You can use exactly four tools by emitting one or more tool blocks as your entire assistant message:
+  #|You can use exactly four tools by emitting a DeepSeek DSML tool call block as your entire assistant message:
   #|
-  #|<tool:read>
-  #|relative/or/absolute/path
-  #|</tool>
+  #|<｜DSML｜tool_calls>
+  #|<｜DSML｜invoke name="read">
+  #|<｜DSML｜parameter name="path" string="true">relative/or/absolute/path</｜DSML｜parameter>
+  #|</｜DSML｜invoke>
+  #|</｜DSML｜tool_calls>
   #|
-  #|<tool:read>
-  #|relative/or/absolute/path
-  #|---
-  #|start_line
-  #|---
-  #|end_line
-  #|</tool>
+  #|<｜DSML｜tool_calls>
+  #|<｜DSML｜invoke name="read">
+  #|<｜DSML｜parameter name="path" string="true">relative/or/absolute/path</｜DSML｜parameter>
+  #|<｜DSML｜parameter name="start_line" string="false">1</｜DSML｜parameter>
+  #|<｜DSML｜parameter name="end_line" string="false">80</｜DSML｜parameter>
+  #|</｜DSML｜invoke>
+  #|</｜DSML｜tool_calls>
   #|
-  #|<tool:write>
-  #|path
-  #|---
-  #|complete file contents
-  #|</tool>
+  #|<｜DSML｜tool_calls>
+  #|<｜DSML｜invoke name="write">
+  #|<｜DSML｜parameter name="path" string="true">path</｜DSML｜parameter>
+  #|<｜DSML｜parameter name="content" string="true">complete file contents</｜DSML｜parameter>
+  #|</｜DSML｜invoke>
+  #|</｜DSML｜tool_calls>
   #|
-  #|<tool:edit>
-  #|path
-  #|---
-  #|exact old text
-  #|---
-  #|replacement text
-  #|</tool>
+  #|<｜DSML｜tool_calls>
+  #|<｜DSML｜invoke name="edit">
+  #|<｜DSML｜parameter name="path" string="true">path</｜DSML｜parameter>
+  #|<｜DSML｜parameter name="old_text" string="true">exact old text</｜DSML｜parameter>
+  #|<｜DSML｜parameter name="new_text" string="true">replacement text</｜DSML｜parameter>
+  #|</｜DSML｜invoke>
+  #|</｜DSML｜tool_calls>
   #|
-  #|<tool:bash>
-  #|command
-  #|</tool>
+  #|<｜DSML｜tool_calls>
+  #|<｜DSML｜invoke name="bash">
+  #|<｜DSML｜parameter name="command" string="true">command</｜DSML｜parameter>
+  #|</｜DSML｜invoke>
+  #|</｜DSML｜tool_calls>
   #|
-  #|Use read before editing files. Read output is line-numbered; use ranged reads for large files. Prefer edit for small changes and write only when replacing or creating a full file. Use bash for builds, tests, search, and formatting. You may emit multiple independent tool blocks in one response; they will run in parallel and observations will be returned in call order. Do not emit dependent tools in the same response. After tool results, continue with more tool blocks or finish with a concise final answer. Do not invent tool names.
+  #|Use read before editing files. Read output is line-numbered; use ranged reads for large files. Prefer edit for small changes and write only when replacing or creating a full file. Use bash for builds, tests, search, and formatting. You may emit multiple independent <｜DSML｜invoke> blocks inside one <｜DSML｜tool_calls> block; they will run in parallel and observations will be returned in call order. Do not emit dependent tools in the same response. After tool results, continue with more DSML tool calls or finish with a concise final answer. Do not invent tool names. Do not wrap final answers in DSML.
   #|
   #|MoonBit language guide:
   #|- Files use .mbt. Top-level declarations include fn, async fn, struct, enum, type, trait, impl, const, let, and extern.
@@ -319,6 +348,31 @@ fn system_prompt() -> String {
 }
 
 ///|
+fn rendered_chat_prompt(
+  system : String,
+  prompt : String,
+  think_mode : @ds4lib.ThinkMode,
+) -> String {
+  let out = StringBuilder::new(
+    size_hint=system.length() + prompt.length() + 128,
+  )
+  out.write_string("<｜begin▁of▁sentence｜>")
+  if think_mode == @ds4lib.ThinkMode::max() {
+    out.write_string(@ds4lib.ThinkMode::max_prefix())
+  }
+  out.write_string(system)
+  out.write_string("\n<｜User｜>\n")
+  out.write_string(prompt)
+  out.write_string("\n<｜Assistant｜>\n")
+  if think_mode.enabled() {
+    out.write_string("<think>")
+  } else {
+    out.write_string("</think>")
+  }
+  out.to_string()
+}
+
+///|
 priv suberror CliError {
   Message(String)
 }
@@ -353,7 +407,8 @@ fn default_config() -> Config {
 ///|
 fn parse_positive_int(value : String, opt : String) -> Int raise CliError {
   let parsed = @string.parse_int(value) catch {
-    _ => raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
+    _ =>
+      raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
   }
   if parsed <= 0 {
     raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
@@ -364,7 +419,8 @@ fn parse_positive_int(value : String, opt : String) -> Int raise CliError {
 ///|
 fn parse_uint64(value : String, opt : String) -> UInt64 raise CliError {
   let parsed = @string.parse_uint64(value) catch {
-    _ => raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
+    _ =>
+      raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
   }
   if parsed == 0 {
     raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
@@ -380,7 +436,8 @@ fn parse_float_range(
   max : Float,
 ) -> Float raise CliError {
   let parsed = Float::from_double(@string.parse_double(value)) catch {
-    _ => raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
+    _ =>
+      raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
   }
   if parsed < min || parsed > max {
     raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
@@ -618,7 +675,11 @@ fn line_count(text : String) -> Int {
 }
 
 ///|
-fn line_numbered_text(text : String, start_line : Int, end_line : Int) -> String {
+fn line_numbered_text(
+  text : String,
+  start_line : Int,
+  end_line : Int,
+) -> String {
   let lines = text.split("\n").to_array()
   let total = lines.length()
   let start = if start_line <= 0 { 1 } else { start_line }
@@ -628,7 +689,7 @@ fn line_numbered_text(text : String, start_line : Int, end_line : Int) -> String
     out.write_string("(no lines in requested range)")
     return out.to_string()
   }
-  for i in start..=end {
+  for i in start..<=end {
     out.write_string(i.to_string())
     out.write_string(" | ")
     out.write_stringview(lines[i - 1])
@@ -649,7 +710,7 @@ fn first_line_of_match(text : String, needle : String) -> Int? {
 }
 
 ///|
-fn parse_tools(text : String) -> Array[ToolCall] {
+fn parse_legacy_tools(text : String) -> Array[ToolCall] {
   let calls : Array[ToolCall] = []
   let mut rest = text[:]
   while rest.length() > 0 {
@@ -669,7 +730,9 @@ fn parse_tools(text : String) -> Array[ToolCall] {
                   name,
                   body: after_name[:end_index].trim().to_owned(),
                 })
-                rest = after_name.view(start_offset=end_index + TOOL_END.length())
+                rest = after_name.view(
+                  start_offset=end_index + TOOL_END.length(),
+                )
               }
             }
           }
@@ -678,6 +741,210 @@ fn parse_tools(text : String) -> Array[ToolCall] {
     }
   }
   calls
+}
+
+///|
+fn parse_attr(tag : StringView, name : String) -> String? {
+  let marker = name + "=\""
+  match tag.find(marker) {
+    None => None
+    Some(index) => {
+      let after = tag.view(start_offset=index + marker.length())
+      match after.find("\"") {
+        None => None
+        Some(end_index) => Some(after[:end_index].to_owned())
+      }
+    }
+  }
+}
+
+///|
+fn dsml_unescape(text : String) -> String {
+  text
+  .replace_all(old="&lt;", new="<")
+  .replace_all(old="&gt;", new=">")
+  .replace_all(old="&quot;", new="\"")
+  .replace_all(old="&amp;", new="&")
+}
+
+///|
+fn parse_dsml_params(text : StringView) -> Array[DsmlParam] {
+  let params : Array[DsmlParam] = []
+  let mut rest = text
+  while rest.length() > 0 {
+    match rest.find(DSML_PARAM_START) {
+      None => break
+      Some(start) => {
+        let after_start = rest.view(start_offset=start)
+        match after_start.find(">") {
+          None => break
+          Some(close_tag) => {
+            let tag = after_start[:close_tag + 1]
+            let after_tag = after_start.view(start_offset=close_tag + 1)
+            match after_tag.find(DSML_PARAM_END) {
+              None => break
+              Some(end_index) => {
+                match parse_attr(tag, "name") {
+                  None => ()
+                  Some(name) =>
+                    params.push({
+                      name,
+                      value: dsml_unescape(after_tag[:end_index].to_owned()),
+                    })
+                }
+                rest = after_tag.view(
+                  start_offset=end_index + DSML_PARAM_END.length(),
+                )
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  params
+}
+
+///|
+fn dsml_param(params : Array[DsmlParam], name : String) -> String? {
+  for param in params {
+    if param.name == name {
+      return Some(param.value)
+    }
+  }
+  None
+}
+
+///|
+fn dsml_tool_call(name : String, params : Array[DsmlParam]) -> ToolCall? {
+  match name {
+    "read" =>
+      match dsml_param(params, "path") {
+        None => None
+        Some(path) =>
+          match
+            (dsml_param(params, "start_line"), dsml_param(params, "end_line")) {
+            (Some(start_line), Some(end_line)) =>
+              Some({
+                name,
+                body: path.trim().to_owned() +
+                "\n---\n" +
+                start_line.trim().to_owned() +
+                "\n---\n" +
+                end_line.trim().to_owned(),
+              })
+            _ => Some({ name, body: path.trim().to_owned() })
+          }
+      }
+    "write" =>
+      match (dsml_param(params, "path"), dsml_param(params, "content")) {
+        (Some(path), Some(content)) =>
+          Some({ name, body: path.trim().to_owned() + "\n---\n" + content })
+        _ => None
+      }
+    "edit" =>
+      match
+        (
+          dsml_param(params, "path"),
+          dsml_param(params, "old_text"),
+          dsml_param(params, "new_text"),
+        ) {
+        (Some(path), Some(old_text), Some(new_text)) =>
+          Some({
+            name,
+            body: path.trim().to_owned() +
+            "\n---\n" +
+            old_text +
+            "\n---\n" +
+            new_text,
+          })
+        _ => None
+      }
+    "bash" =>
+      match dsml_param(params, "command") {
+        Some(command) => Some({ name, body: command })
+        None => None
+      }
+    _ => None
+  }
+}
+
+///|
+fn parse_dsml_invokes(text : StringView) -> Array[ToolCall] {
+  let calls : Array[ToolCall] = []
+  let mut rest = text
+  while rest.length() > 0 {
+    match rest.find(DSML_INVOKE_START) {
+      None => break
+      Some(start) => {
+        let after_start = rest.view(start_offset=start)
+        match after_start.find(">") {
+          None => break
+          Some(close_tag) => {
+            let tag = after_start[:close_tag + 1]
+            let after_tag = after_start.view(start_offset=close_tag + 1)
+            match after_tag.find(DSML_INVOKE_END) {
+              None => break
+              Some(end_index) => {
+                match parse_attr(tag, "name") {
+                  None => ()
+                  Some(name) => {
+                    let params = parse_dsml_params(after_tag[:end_index])
+                    match dsml_tool_call(name, params) {
+                      None => ()
+                      Some(call) => calls.push(call)
+                    }
+                  }
+                }
+                rest = after_tag.view(
+                  start_offset=end_index + DSML_INVOKE_END.length(),
+                )
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  calls
+}
+
+///|
+fn parse_dsml_tools(text : String) -> Array[ToolCall] {
+  let calls : Array[ToolCall] = []
+  let mut rest = text[:]
+  while rest.length() > 0 {
+    match rest.find(DSML_TOOL_CALLS_START) {
+      None => break
+      Some(start) => {
+        let after_start = rest.view(
+          start_offset=start + DSML_TOOL_CALLS_START.length(),
+        )
+        match after_start.find(DSML_TOOL_CALLS_END) {
+          None => break
+          Some(end_index) => {
+            for call in parse_dsml_invokes(after_start[:end_index]) {
+              calls.push(call)
+            }
+            rest = after_start.view(
+              start_offset=end_index + DSML_TOOL_CALLS_END.length(),
+            )
+          }
+        }
+      }
+    }
+  }
+  calls
+}
+
+///|
+fn parse_tools(text : String) -> Array[ToolCall] {
+  let dsml = parse_dsml_tools(text)
+  if dsml.length() > 0 {
+    dsml
+  } else {
+    parse_legacy_tools(text)
+  }
 }
 
 ///|
@@ -690,10 +957,12 @@ fn split_body_2(body : String) -> (String, String)? {
 
 ///|
 fn parse_int_opt(value : String) -> Int? {
-  let parsed = @string.parse_int(value) catch {
-    _ => return None
+  let parsed = @string.parse_int(value) catch { _ => return None }
+  if parsed <= 0 {
+    None
+  } else {
+    Some(parsed)
   }
-  if parsed <= 0 { None } else { Some(parsed) }
 }
 
 ///|
@@ -703,13 +972,16 @@ fn parse_read_request_opt(body : String) -> ReadRequest? {
     Some((path, rest)) =>
       match rest.split_once("\n---\n") {
         None => None
-        Some((start, end)) => {
-          match (parse_int_opt(start.trim().to_owned()), parse_int_opt(end.trim().to_owned())) {
+        Some((start, end)) =>
+          match
+            (
+              parse_int_opt(start.trim().to_owned()),
+              parse_int_opt(end.trim().to_owned()),
+            ) {
             (Some(start_line), Some(end_line)) if end_line >= start_line =>
               Some({ path: path.trim().to_owned(), start_line, end_line })
             _ => None
           }
-        }
       }
   }
 }
@@ -733,11 +1005,9 @@ fn split_body_3(body : String) -> (String, String, String)? {
       match rest.split_once("\n---\n") {
         None => None
         Some((old_text, new_text)) =>
-          Some((
-            path.trim().to_owned(),
-            old_text.to_owned(),
-            new_text.to_owned(),
-          ))
+          Some(
+            (path.trim().to_owned(), old_text.to_owned(), new_text.to_owned()),
+          )
       }
   }
 }
@@ -752,8 +1022,12 @@ fn tool_summary(call : ToolCall) -> String {
           if request.start_line == 0 {
             "read " + request.path
           } else {
-            "read " + request.path + ":" + request.start_line.to_string() +
-            "-" + request.end_line.to_string()
+            "read " +
+            request.path +
+            ":" +
+            request.start_line.to_string() +
+            "-" +
+            request.end_line.to_string()
           }
       }
     "write" =>
@@ -795,12 +1069,17 @@ async fn run_tool(config : Config, call : ToolCall) -> String raise Error {
             request.end_line,
           )
           let range = if request.start_line > 0 {
-            " lines " + request.start_line.to_string() + "-" +
+            " lines " +
+            request.start_line.to_string() +
+            "-" +
             request.end_line.to_string()
           } else {
             ""
           }
-          "read " + request.path + range + "\n" +
+          "read " +
+          request.path +
+          range +
+          "\n" +
           truncate_output(rendered, 20000)
         }
       }
@@ -814,7 +1093,10 @@ async fn run_tool(config : Config, call : ToolCall) -> String raise Error {
             content,
             create_mode=@fs.CreateOrTruncate,
           )
-          "write " + path + " lines 1-" + line_count(content).to_string() +
+          "write " +
+          path +
+          " lines 1-" +
+          line_count(content).to_string() +
           ": ok"
         }
       }
@@ -829,14 +1111,18 @@ async fn run_tool(config : Config, call : ToolCall) -> String raise Error {
           if replaced == original {
             "edit " + path + ": old text not found"
           } else {
-            @fs.write_file(full_path, replaced, create_mode=@fs.CreateOrTruncate)
+            @fs.write_file(
+              full_path,
+              replaced,
+              create_mode=@fs.CreateOrTruncate,
+            )
             match line {
               Some(n) => "edit " + path + " line " + n.to_string() + ": ok"
               None => "edit " + path + ": ok"
             }
           }
         }
-    }
+      }
     "bash" => {
       let command = call.body.trim().to_owned()
       let (code, output) = @process.collect_output_merged(
@@ -844,7 +1130,9 @@ async fn run_tool(config : Config, call : ToolCall) -> String raise Error {
         ["-lc", command],
         cwd=config.cwd,
       )
-      "bash exit " + code.to_string() + "\n" +
+      "bash exit " +
+      code.to_string() +
+      "\n" +
       truncate_output(output.text(), 20000)
     }
     other => "tool error: unknown tool " + other
@@ -877,10 +1165,8 @@ async fn generate_once(
   stdout : @io.BufferedWriter[@stdio.Output],
 ) -> String raise Error {
   let think_mode = config.think_mode.for_context(config.ctx_size)
-  let prompt = engine.encode_chat_prompt(
-    prompt_text,
-    system=system_prompt(),
-    think_mode~,
+  let prompt = engine.tokenize_rendered_chat(
+    rendered_chat_prompt(system_prompt(), prompt_text, think_mode)[:],
   )
   let session = engine.create_session(config.ctx_size)
   session.sync(prompt)
@@ -958,8 +1244,11 @@ async fn run_agent(config : Config) -> Unit raise Error {
       }
       stdout.flush()
     }
-    transcript = transcript + "\n\nAssistant:\n" + response +
-      "\n\nObservations:\n" + observations.join("\n\n")
+    transcript = transcript +
+      "\n\nAssistant:\n" +
+      response +
+      "\n\nObservations:\n" +
+      observations.join("\n\n")
     turn = turn + 1
   }
   stdout.write("ds4mbt: stopped after max turns\n")
