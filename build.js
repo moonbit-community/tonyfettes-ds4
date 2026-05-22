@@ -3,7 +3,7 @@ const path = require('path');
 
 const projectRoot = __dirname;
 const platform = os.platform();
-const pkg = 'feihaoxiang/ds4';
+const pkg = 'tonyfettes/ds4';
 
 let stubFlags = `-I${projectRoot}`;
 let linkFlags;
