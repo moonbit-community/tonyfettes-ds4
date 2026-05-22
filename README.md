@@ -30,3 +30,16 @@ same seed to both commands:
 ```sh
 _build/native/debug/build/cmd/ds4/ds4.exe -m /path/to/model.gguf --seed 42 -p "Write a short haiku about MoonBit"
 ```
+
+Run the MoonBit coding micro agent:
+
+```sh
+moon build cmd/ds4mbt --target native
+_build/native/debug/build/cmd/ds4mbt/ds4mbt.exe -m /path/to/model.gguf -p "Add focused tests for the parser"
+```
+
+`cmd/ds4mbt` embeds the MoonBit agent guide from
+`~/Documents/moonbit-agent-guide/moonbit-agent-guide` in its system prompt and
+executes four tool blocks emitted by the model: `read`, `write`, `edit`, and
+`bash`. Use `--cwd /path/to/workspace` to point the tools at a different
+MoonBit codebase.

@@ -1,0 +1,15 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "tonyfettes/ds4/cmd/ds4mbt"
+
+// Values
+
+// Errors
+
+// Types and methods
+type Config
+
+type ToolCall
+
+// Type aliases
+
+// Traits

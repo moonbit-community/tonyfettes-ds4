@@ -1,0 +1,17 @@
+import {
+  "tonyfettes/ds4" @ds4lib,
+  "moonbitlang/async",
+  "moonbitlang/async/fs",
+  "moonbitlang/async/io",
+  "moonbitlang/async/process",
+  "moonbitlang/async/stdio",
+  "moonbitlang/core/argparse",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+}
+
+supported_targets = "+native"
+
+options(
+  "is-main": true,
+)
