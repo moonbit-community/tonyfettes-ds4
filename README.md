@@ -7,6 +7,17 @@ DS4 source files are vendored directly in this package.
 The MoonBit package builds the DS4 sources directly as native stubs:
 `ds4_stub.c`, `ds4.c`, and `ds4_metal.m` on macOS.
 
+## Model weights
+
+This package does not vendor or download model weights.
+
+Download a compatible DwarfStar 4 GGUF model using the upstream DS4
+instructions:
+
+https://github.com/antirez/ds4#model-weights
+
+Then pass the downloaded `.gguf` file explicitly with `-m /path/to/model.gguf`.
+
 Validate the package:
 
 ```sh
