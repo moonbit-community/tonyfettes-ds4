@@ -69,9 +69,9 @@ if (platform === 'darwin') {
   linkFlags = '-framework Foundation -framework Metal -pthread';
   linkConfig.link_flags = '-framework Foundation -framework Metal -pthread';
 } else if (platform === 'linux') {
-  stubFlags += ' -DDS4_NO_GPU';
-  linkFlags = '-pthread';
-  linkConfig.link_flags = '-pthread';
+  stubFlags += ' -DDS4_NO_GPU -D_GNU_SOURCE -fno-finite-math-only';
+  linkFlags = '-lm -pthread';
+  linkConfig.link_flags = '-lm -pthread';
 } else {
   throw new Error(`Unsupported platform for ds4 native binding: ${platform}`);
 }

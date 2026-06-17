@@ -8,8 +8,17 @@ package "tonyfettes/ds4/cmd/ds4mbt"
 // Types and methods
 type Config
 
+type DsmlParam
+
+type ReadRequest
+
+type ThinkMarker
+
+type ThinkRenderer
+
 type ToolCall
 
 // Type aliases
 
 // Traits
+

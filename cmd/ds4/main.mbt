@@ -432,7 +432,11 @@ fn parse_args(args : Array[String]) -> Config raise Error {
 ///|
 async fn generate(config : Config) -> Unit raise Error {
   let engine = @ds4lib.Engine::open(
-    @ds4lib.EngineConfig::new(config.model_path, backend=config.backend),
+    @ds4lib.EngineConfig::new(
+      config.model_path,
+      backend=config.backend,
+      inspect_only=config.inspect,
+    ),
   )
   if config.inspect {
     engine.summary()

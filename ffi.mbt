@@ -181,6 +181,7 @@ pub(all) struct EngineConfig {
   directional_steering_ffn : Float
   warm_weights : Bool
   quality : Bool
+  inspect_only : Bool
 } derive(Eq, Debug)
 
 ///|
@@ -196,6 +197,7 @@ pub fn EngineConfig::new(
   directional_steering_ffn? : Float = 0.0,
   warm_weights? : Bool = false,
   quality? : Bool = false,
+  inspect_only? : Bool = false,
 ) -> EngineConfig {
   {
     model_path,
@@ -209,6 +211,7 @@ pub fn EngineConfig::new(
     directional_steering_ffn,
     warm_weights,
     quality,
+    inspect_only,
   }
 }
 
@@ -242,6 +245,7 @@ extern "c" fn ds4_engine_open(
   directional_steering_ffn : Float,
   warm_weights : Bool,
   quality : Bool,
+  inspect_only : Bool,
 ) -> Int = "moonbit_ds4_engine_open"
 
 ///|
@@ -260,6 +264,7 @@ pub fn Engine::open(config : EngineConfig) -> Engine raise Ds4Error {
     config.directional_steering_ffn,
     config.warm_weights,
     config.quality,
+    config.inspect_only,
   )
   if status != 0 {
     raise Ds4Error::OpenFailed(status)

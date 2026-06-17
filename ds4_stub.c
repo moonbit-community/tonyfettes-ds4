@@ -194,7 +194,8 @@ int32_t moonbit_ds4_engine_open(
   float directional_steering_attn,
   float directional_steering_ffn,
   int32_t warm_weights,
-  int32_t quality
+  int32_t quality,
+  int32_t inspect_only
 ) {
   ds4_engine_options opt = {0};
   opt.model_path = (const char *)model_path;
@@ -208,6 +209,7 @@ int32_t moonbit_ds4_engine_open(
   opt.directional_steering_ffn = directional_steering_ffn;
   opt.warm_weights = warm_weights != 0;
   opt.quality = quality != 0;
+  opt.inspect_only = inspect_only != 0;
   return ds4_engine_open(&engine->ptr, &opt);
 }
 

@@ -9,6 +9,12 @@ options(
       "cc-link-flags": "${build.DS4_CC_LINK_FLAGS}",
     },
   },
-  "native-stub": [ "ds4_stub.c", "ds4.c", "ds4_metal.m" ],
+  "native-stub": [
+    "ds4_stub.c",
+    "ds4.c",
+    "ds4_distributed.c",
+    "ds4_ssd.c",
+    "ds4_metal.m",
+  ],
   targets: { "ffi.mbt": [ "native" ], "ffi_test.mbt": [ "native" ] },
 )
