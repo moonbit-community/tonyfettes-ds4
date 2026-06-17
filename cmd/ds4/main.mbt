@@ -182,7 +182,7 @@ priv suberror CliError {
 }
 
 ///|
-impl Show for CliError with output(self : CliError, logger) {
+impl Show for CliError with fn output(self : CliError, logger) {
   match self {
     Message(message) => logger.write_string(message)
   }
