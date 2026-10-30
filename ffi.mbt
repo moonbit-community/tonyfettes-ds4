@@ -1,5 +1,5 @@
 ///|
-struct Backend(Int) derive(Eq, Debug)
+struct Backend(Int32) derive(Eq, Debug)
 
 ///|
 pub fn Backend::metal() -> Backend {
@@ -17,7 +17,7 @@ pub fn Backend::cpu() -> Backend {
 }
 
 ///|
-extern "c" fn ds4_backend_default() -> Int = "moonbit_ds4_backend_default"
+extern "c" fn ds4_backend_default() -> Int32 = "moonbit_ds4_backend_default"
 
 ///|
 pub fn Backend::default() -> Backend {
@@ -25,12 +25,12 @@ pub fn Backend::default() -> Backend {
 }
 
 ///|
-fn Backend::to_int(self : Backend) -> Int {
+fn Backend::to_int(self : Backend) -> Int32 {
   self.0
 }
 
 ///|
-extern "c" fn ds4_backend_name(backend : Int) -> Bytes = "moonbit_ds4_backend_name"
+extern "c" fn ds4_backend_name(backend : Int32) -> Bytes = "moonbit_ds4_backend_name"
 
 ///|
 pub fn Backend::name(self : Backend) -> String {
@@ -38,7 +38,7 @@ pub fn Backend::name(self : Backend) -> String {
 }
 
 ///|
-struct ThinkMode(Int) derive(Eq, Debug)
+struct ThinkMode(Int32) derive(Eq, Debug)
 
 ///|
 pub fn ThinkMode::none() -> ThinkMode {
@@ -56,12 +56,12 @@ pub fn ThinkMode::max() -> ThinkMode {
 }
 
 ///|
-fn ThinkMode::to_int(self : ThinkMode) -> Int {
+fn ThinkMode::to_int(self : ThinkMode) -> Int32 {
   self.0
 }
 
 ///|
-extern "c" fn ds4_think_mode_name(mode : Int) -> Bytes = "moonbit_ds4_think_mode_name"
+extern "c" fn ds4_think_mode_name(mode : Int32) -> Bytes = "moonbit_ds4_think_mode_name"
 
 ///|
 pub fn ThinkMode::name(self : ThinkMode) -> String {
@@ -69,7 +69,7 @@ pub fn ThinkMode::name(self : ThinkMode) -> String {
 }
 
 ///|
-extern "c" fn ds4_think_mode_enabled(mode : Int) -> Bool = "moonbit_ds4_think_mode_enabled"
+extern "c" fn ds4_think_mode_enabled(mode : Int32) -> Bool = "moonbit_ds4_think_mode_enabled"
 
 ///|
 pub fn ThinkMode::enabled(self : ThinkMode) -> Bool {
@@ -85,18 +85,21 @@ pub fn ThinkMode::max_prefix() -> String {
 }
 
 ///|
-extern "c" fn ds4_think_max_min_context() -> UInt = "moonbit_ds4_think_max_min_context"
+extern "c" fn ds4_think_max_min_context() -> UInt32 = "moonbit_ds4_think_max_min_context"
 
 ///|
-pub fn ThinkMode::max_min_context() -> UInt {
+pub fn ThinkMode::max_min_context() -> UInt32 {
   ds4_think_max_min_context()
 }
 
 ///|
-extern "c" fn ds4_think_mode_for_context(mode : Int, ctx_size : Int) -> Int = "moonbit_ds4_think_mode_for_context"
+extern "c" fn ds4_think_mode_for_context(
+  mode : Int32,
+  ctx_size : Int32,
+) -> Int32 = "moonbit_ds4_think_mode_for_context"
 
 ///|
-pub fn ThinkMode::for_context(self : ThinkMode, ctx_size : Int) -> ThinkMode {
+pub fn ThinkMode::for_context(self : ThinkMode, ctx_size : Int32) -> ThinkMode {
   ThinkMode(ds4_think_mode_for_context(self.0, ctx_size))
 }
 
@@ -106,48 +109,57 @@ pub(all) struct ContextMemory {
   raw_bytes : UInt64
   compressed_bytes : UInt64
   scratch_bytes : UInt64
-  prefill_cap : UInt
-  raw_cap : UInt
-  comp_cap : UInt
+  prefill_cap : UInt32
+  raw_cap : UInt32
+  comp_cap : UInt32
 } derive(Eq, Debug)
 
 ///|
-extern "c" fn ds4_context_memory_total(backend : Int, ctx_size : Int) -> UInt64 = "moonbit_ds4_context_memory_total"
+extern "c" fn ds4_context_memory_total(
+  backend : Int32,
+  ctx_size : Int32,
+) -> UInt64 = "moonbit_ds4_context_memory_total"
 
 ///|
-extern "c" fn ds4_context_memory_raw(backend : Int, ctx_size : Int) -> UInt64 = "moonbit_ds4_context_memory_raw"
+extern "c" fn ds4_context_memory_raw(
+  backend : Int32,
+  ctx_size : Int32,
+) -> UInt64 = "moonbit_ds4_context_memory_raw"
 
 ///|
 extern "c" fn ds4_context_memory_compressed(
-  backend : Int,
-  ctx_size : Int,
+  backend : Int32,
+  ctx_size : Int32,
 ) -> UInt64 = "moonbit_ds4_context_memory_compressed"
 
 ///|
 extern "c" fn ds4_context_memory_scratch(
-  backend : Int,
-  ctx_size : Int,
+  backend : Int32,
+  ctx_size : Int32,
 ) -> UInt64 = "moonbit_ds4_context_memory_scratch"
 
 ///|
 extern "c" fn ds4_context_memory_prefill_cap(
-  backend : Int,
-  ctx_size : Int,
-) -> UInt = "moonbit_ds4_context_memory_prefill_cap"
+  backend : Int32,
+  ctx_size : Int32,
+) -> UInt32 = "moonbit_ds4_context_memory_prefill_cap"
 
 ///|
-extern "c" fn ds4_context_memory_raw_cap(backend : Int, ctx_size : Int) -> UInt = "moonbit_ds4_context_memory_raw_cap"
+extern "c" fn ds4_context_memory_raw_cap(
+  backend : Int32,
+  ctx_size : Int32,
+) -> UInt32 = "moonbit_ds4_context_memory_raw_cap"
 
 ///|
 extern "c" fn ds4_context_memory_comp_cap(
-  backend : Int,
-  ctx_size : Int,
-) -> UInt = "moonbit_ds4_context_memory_comp_cap"
+  backend : Int32,
+  ctx_size : Int32,
+) -> UInt32 = "moonbit_ds4_context_memory_comp_cap"
 
 ///|
 pub fn Backend::context_memory_estimate(
   self : Backend,
-  ctx_size : Int,
+  ctx_size : Int32,
 ) -> ContextMemory {
   let backend = self.0
   {
@@ -163,9 +175,9 @@ pub fn Backend::context_memory_estimate(
 
 ///|
 pub(all) suberror Ds4Error {
-  OpenFailed(Int)
-  SessionCreateFailed(Int, String)
-  OperationFailed(op~ : String, status~ : Int, message~ : String)
+  OpenFailed(Int32)
+  SessionCreateFailed(Int32, String)
+  OperationFailed(op~ : String, status~ : Int32, message~ : String)
 } derive(Eq, Debug)
 
 ///|
@@ -173,8 +185,8 @@ pub(all) struct EngineConfig {
   model_path : String
   mtp_path : String
   backend : Backend
-  n_threads : Int
-  mtp_draft_tokens : Int
+  n_threads : Int32
+  mtp_draft_tokens : Int32
   mtp_margin : Float
   directional_steering_file : String
   directional_steering_attn : Float
@@ -187,17 +199,17 @@ pub(all) struct EngineConfig {
 ///|
 pub fn EngineConfig::new(
   model_path : String,
-  backend? : Backend = Backend::default(),
-  mtp_path? : String = "",
-  n_threads? : Int = 0,
-  mtp_draft_tokens? : Int = 1,
-  mtp_margin? : Float = -1.0,
-  directional_steering_file? : String = "",
-  directional_steering_attn? : Float = 0.0,
-  directional_steering_ffn? : Float = 0.0,
-  warm_weights? : Bool = false,
-  quality? : Bool = false,
-  inspect_only? : Bool = false,
+  backend~ : Backend = Backend::default(),
+  mtp_path~ : String = "",
+  n_threads~ : Int32 = 0,
+  mtp_draft_tokens~ : Int32 = 1,
+  mtp_margin~ : Float = -1.0,
+  directional_steering_file~ : String = "",
+  directional_steering_attn~ : Float = 0.0,
+  directional_steering_ffn~ : Float = 0.0,
+  warm_weights~ : Bool = false,
+  quality~ : Bool = false,
+  inspect_only~ : Bool = false,
 ) -> EngineConfig {
   {
     model_path,
@@ -236,9 +248,9 @@ extern "c" fn ds4_engine_open(
   engine : Engine,
   model_path : Bytes,
   mtp_path : Bytes,
-  backend : Int,
-  n_threads : Int,
-  mtp_draft_tokens : Int,
+  backend : Int32,
+  n_threads : Int32,
+  mtp_draft_tokens : Int32,
   mtp_margin : Float,
   directional_steering_file : Bytes,
   directional_steering_attn : Float,
@@ -246,7 +258,7 @@ extern "c" fn ds4_engine_open(
   warm_weights : Bool,
   quality : Bool,
   inspect_only : Bool,
-) -> Int = "moonbit_ds4_engine_open"
+) -> Int32 = "moonbit_ds4_engine_open"
 
 ///|
 pub fn Engine::open(config : EngineConfig) -> Engine raise Ds4Error {
@@ -283,19 +295,19 @@ pub fn Engine::summary(self : Engine) -> Unit {
 
 ///|
 #borrow(engine)
-extern "c" fn ds4_engine_token_eos(engine : Engine) -> Int = "moonbit_ds4_engine_token_eos"
+extern "c" fn ds4_engine_token_eos(engine : Engine) -> Int32 = "moonbit_ds4_engine_token_eos"
 
 ///|
-pub fn Engine::token_eos(self : Engine) -> Int {
+pub fn Engine::token_eos(self : Engine) -> Int32 {
   ds4_engine_token_eos(self)
 }
 
 ///|
 #borrow(engine)
-extern "c" fn ds4_engine_routed_quant_bits(engine : Engine) -> Int = "moonbit_ds4_engine_routed_quant_bits"
+extern "c" fn ds4_engine_routed_quant_bits(engine : Engine) -> Int32 = "moonbit_ds4_engine_routed_quant_bits"
 
 ///|
-pub fn Engine::routed_quant_bits(self : Engine) -> Int {
+pub fn Engine::routed_quant_bits(self : Engine) -> Int32 {
   ds4_engine_routed_quant_bits(self)
 }
 
@@ -310,19 +322,19 @@ pub fn Engine::has_mtp(self : Engine) -> Bool {
 
 ///|
 #borrow(engine)
-extern "c" fn ds4_engine_mtp_draft_tokens(engine : Engine) -> Int = "moonbit_ds4_engine_mtp_draft_tokens"
+extern "c" fn ds4_engine_mtp_draft_tokens(engine : Engine) -> Int32 = "moonbit_ds4_engine_mtp_draft_tokens"
 
 ///|
-pub fn Engine::mtp_draft_tokens(self : Engine) -> Int {
+pub fn Engine::mtp_draft_tokens(self : Engine) -> Int32 {
   ds4_engine_mtp_draft_tokens(self)
 }
 
 ///|
 #borrow(engine)
-extern "c" fn ds4_engine_token_text(engine : Engine, token : Int) -> Bytes = "moonbit_ds4_engine_token_text"
+extern "c" fn ds4_engine_token_text(engine : Engine, token : Int32) -> Bytes = "moonbit_ds4_engine_token_text"
 
 ///|
-pub fn Engine::token_text(self : Engine, token : Int) -> String {
+pub fn Engine::token_text(self : Engine, token : Int32) -> String {
   @utf8.decode_lossy(ds4_engine_token_text(self, token))
 }
 
@@ -353,28 +365,28 @@ pub fn Tokens::copy(self : Tokens) -> Tokens {
 
 ///|
 #borrow(tokens)
-extern "c" fn ds4_tokens_push(tokens : Tokens, token : Int) -> Unit = "moonbit_ds4_tokens_push"
+extern "c" fn ds4_tokens_push(tokens : Tokens, token : Int32) -> Unit = "moonbit_ds4_tokens_push"
 
 ///|
-pub fn Tokens::push(self : Tokens, token : Int) -> Unit {
+pub fn Tokens::push(self : Tokens, token : Int32) -> Unit {
   ds4_tokens_push(self, token)
 }
 
 ///|
 #borrow(tokens)
-extern "c" fn ds4_tokens_length(tokens : Tokens) -> Int = "moonbit_ds4_tokens_length"
+extern "c" fn ds4_tokens_length(tokens : Tokens) -> Int32 = "moonbit_ds4_tokens_length"
 
 ///|
-pub fn Tokens::length(self : Tokens) -> Int {
+pub fn Tokens::length(self : Tokens) -> Int32 {
   ds4_tokens_length(self)
 }
 
 ///|
 #borrow(tokens)
-extern "c" fn ds4_tokens_get(tokens : Tokens, index : Int) -> Int = "moonbit_ds4_tokens_get"
+extern "c" fn ds4_tokens_get(tokens : Tokens, index : Int32) -> Int32 = "moonbit_ds4_tokens_get"
 
 ///|
-pub fn Tokens::get(self : Tokens, index : Int) -> Int? {
+pub fn Tokens::get(self : Tokens, index : Int32) -> Int32? {
   if index < 0 || index >= self.length() {
     None
   } else {
@@ -383,7 +395,8 @@ pub fn Tokens::get(self : Tokens, index : Int) -> Int? {
 }
 
 ///|
-pub fn Tokens::op_get(self : Tokens, index : Int) -> Int {
+#alias("_[_]")
+pub fn Tokens::at(self : Tokens, index : Int32) -> Int32 {
   if index < 0 || index >= self.length() {
     abort("token index out of bounds")
   }
@@ -392,10 +405,10 @@ pub fn Tokens::op_get(self : Tokens, index : Int) -> Int {
 
 ///|
 #borrow(tokens)
-extern "c" fn ds4_tokens_to_fixed_array(tokens : Tokens) -> FixedArray[Int] = "moonbit_ds4_tokens_to_fixed_array"
+extern "c" fn ds4_tokens_to_fixed_array(tokens : Tokens) -> FixedArray[Int32] = "moonbit_ds4_tokens_to_fixed_array"
 
 ///|
-pub fn Tokens::to_fixed_array(self : Tokens) -> FixedArray[Int] {
+pub fn Tokens::to_fixed_array(self : Tokens) -> FixedArray[Int32] {
   ds4_tokens_to_fixed_array(self)
 }
 
@@ -438,15 +451,15 @@ extern "c" fn ds4_engine_encode_chat_prompt(
   engine : Engine,
   system : Bytes,
   prompt : Bytes,
-  think_mode : Int,
+  think_mode : Int32,
 ) -> Tokens = "moonbit_ds4_engine_encode_chat_prompt"
 
 ///|
 pub fn Engine::encode_chat_prompt(
   self : Engine,
-  system? : StringView = "",
+  system~ : StringView = "",
   prompt : StringView,
-  think_mode? : ThinkMode = ThinkMode::none(),
+  think_mode~ : ThinkMode = ThinkMode::none(),
 ) -> Tokens {
   ds4_engine_encode_chat_prompt(
     self,
@@ -493,7 +506,7 @@ extern "c" fn ds4_engine_chat_append_message(
 pub fn Engine::chat_append_message(
   self : Engine,
   tokens : Tokens,
-  role? : StringView = "user",
+  role~ : StringView = "user",
   content : StringView,
 ) -> Unit {
   ds4_engine_chat_append_message(
@@ -509,14 +522,14 @@ pub fn Engine::chat_append_message(
 extern "c" fn ds4_engine_chat_append_assistant_prefix(
   engine : Engine,
   tokens : Tokens,
-  think_mode : Int,
+  think_mode : Int32,
 ) -> Unit = "moonbit_ds4_engine_chat_append_assistant_prefix"
 
 ///|
 pub fn Engine::chat_append_assistant_prefix(
   self : Engine,
   tokens : Tokens,
-  think_mode? : ThinkMode = ThinkMode::none(),
+  think_mode~ : ThinkMode = ThinkMode::none(),
 ) -> Unit {
   ds4_engine_chat_append_assistant_prefix(self, tokens, think_mode.to_int())
 }
@@ -525,7 +538,7 @@ pub fn Engine::chat_append_assistant_prefix(
 extern "c" fn ds4_session_new() -> Session = "moonbit_ds4_session_new"
 
 ///|
-const DS4_ERROR_BUFFER_SIZE : Int = 1024
+const DS4_ERROR_BUFFER_SIZE : Int32 = 1024
 
 ///|
 fn new_error_buffer() -> FixedArray[Byte] {
@@ -536,13 +549,13 @@ fn new_error_buffer() -> FixedArray[Byte] {
 fn decode_error_buffer(err : FixedArray[Byte]) -> String {
   let bytes = err.unsafe_reinterpret_as_bytes()
   let len = bytes.find(b"\x00").unwrap_or(bytes.length())
-  @utf8.decode_lossy(bytes.view(end=len))
+  @utf8.decode_lossy(bytes.exact_view(end=len))
 }
 
 ///|
 pub fn Engine::create_session(
   self : Engine,
-  ctx_size : Int,
+  ctx_size : Int32,
 ) -> Session raise Ds4Error {
   let session = ds4_session_new()
   let status = ds4_session_create(session, self, ctx_size)
@@ -557,8 +570,8 @@ pub fn Engine::create_session(
 extern "c" fn ds4_session_create(
   session : Session,
   engine : Engine,
-  ctx_size : Int,
-) -> Int = "moonbit_ds4_session_create"
+  ctx_size : Int32,
+) -> Int32 = "moonbit_ds4_session_create"
 
 ///|
 #borrow(session, prompt, err)
@@ -566,8 +579,8 @@ extern "c" fn ds4_session_sync(
   session : Session,
   prompt : Tokens,
   err : FixedArray[Byte],
-  errlen : Int,
-) -> Int = "moonbit_ds4_session_sync"
+  errlen : Int32,
+) -> Int32 = "moonbit_ds4_session_sync"
 
 ///|
 pub fn Session::sync(self : Session, prompt : Tokens) -> Unit raise Ds4Error {
@@ -586,13 +599,13 @@ pub fn Session::sync(self : Session, prompt : Tokens) -> Unit raise Ds4Error {
 #borrow(session, err)
 extern "c" fn ds4_session_eval(
   session : Session,
-  token : Int,
+  token : Int32,
   err : FixedArray[Byte],
-  errlen : Int,
-) -> Int = "moonbit_ds4_session_eval"
+  errlen : Int32,
+) -> Int32 = "moonbit_ds4_session_eval"
 
 ///|
-pub fn Session::eval(self : Session, token : Int) -> Unit raise Ds4Error {
+pub fn Session::eval(self : Session, token : Int32) -> Unit raise Ds4Error {
   let err = new_error_buffer()
   let status = ds4_session_eval(self, token, err, err.length())
   if status != 0 {
@@ -606,10 +619,10 @@ pub fn Session::eval(self : Session, token : Int) -> Unit raise Ds4Error {
 
 ///|
 #borrow(session)
-extern "c" fn ds4_session_argmax(session : Session) -> Int = "moonbit_ds4_session_argmax"
+extern "c" fn ds4_session_argmax(session : Session) -> Int32 = "moonbit_ds4_session_argmax"
 
 ///|
-pub fn Session::argmax(self : Session) -> Int {
+pub fn Session::argmax(self : Session) -> Int32 {
   ds4_session_argmax(self)
 }
 
@@ -617,11 +630,11 @@ pub fn Session::argmax(self : Session) -> Int {
 #borrow(session)
 extern "c" fn ds4_session_argmax_excluding(
   session : Session,
-  excluded_id : Int,
-) -> Int = "moonbit_ds4_session_argmax_excluding"
+  excluded_id : Int32,
+) -> Int32 = "moonbit_ds4_session_argmax_excluding"
 
 ///|
-pub fn Session::argmax_excluding(self : Session, excluded_id : Int) -> Int {
+pub fn Session::argmax_excluding(self : Session, excluded_id : Int32) -> Int32 {
   ds4_session_argmax_excluding(self, excluded_id)
 }
 
@@ -630,21 +643,21 @@ pub fn Session::argmax_excluding(self : Session, excluded_id : Int) -> Int {
 extern "c" fn ds4_session_sample(
   session : Session,
   temperature : Float,
-  top_k : Int,
+  top_k : Int32,
   top_p : Float,
   min_p : Float,
   sampler : Sampler,
-) -> Int = "moonbit_ds4_session_sample"
+) -> Int32 = "moonbit_ds4_session_sample"
 
 ///|
 pub fn Session::sample(
   self : Session,
   sampler : Sampler,
-  temperature? : Float = 1.0,
-  top_k? : Int = 0,
-  top_p? : Float = 1.0,
-  min_p? : Float = 0.0,
-) -> Int {
+  temperature~ : Float = 1.0,
+  top_k~ : Int32 = 0,
+  top_p~ : Float = 1.0,
+  min_p~ : Float = 0.0,
+) -> Int32 {
   ds4_session_sample(self, temperature, top_k, top_p, min_p, sampler)
 }
 
@@ -659,28 +672,28 @@ pub fn Session::invalidate(self : Session) -> Unit {
 
 ///|
 #borrow(session)
-extern "c" fn ds4_session_rewind(session : Session, pos : Int) -> Unit = "moonbit_ds4_session_rewind"
+extern "c" fn ds4_session_rewind(session : Session, pos : Int32) -> Unit = "moonbit_ds4_session_rewind"
 
 ///|
-pub fn Session::rewind(self : Session, pos : Int) -> Unit {
+pub fn Session::rewind(self : Session, pos : Int32) -> Unit {
   ds4_session_rewind(self, pos)
 }
 
 ///|
 #borrow(session)
-extern "c" fn ds4_session_pos(session : Session) -> Int = "moonbit_ds4_session_pos"
+extern "c" fn ds4_session_pos(session : Session) -> Int32 = "moonbit_ds4_session_pos"
 
 ///|
-pub fn Session::pos(self : Session) -> Int {
+pub fn Session::pos(self : Session) -> Int32 {
   ds4_session_pos(self)
 }
 
 ///|
 #borrow(session)
-extern "c" fn ds4_session_ctx(session : Session) -> Int = "moonbit_ds4_session_ctx"
+extern "c" fn ds4_session_ctx(session : Session) -> Int32 = "moonbit_ds4_session_ctx"
 
 ///|
-pub fn Session::ctx(self : Session) -> Int {
+pub fn Session::ctx(self : Session) -> Int32 {
   ds4_session_ctx(self)
 }
 
@@ -692,3 +705,33 @@ extern "c" fn ds4_session_tokens(session : Session) -> Tokens = "moonbit_ds4_ses
 pub fn Session::tokens(self : Session) -> Tokens {
   ds4_session_tokens(self)
 }
+
+///|
+pub extend Backend with Debug::{to_repr}
+
+///|
+pub extend Backend with Eq::{not_equal, equal}
+
+///|
+pub extend ContextMemory with Debug::{to_repr}
+
+///|
+pub extend ContextMemory with Eq::{not_equal, equal}
+
+///|
+pub extend Ds4Error with Debug::{to_repr}
+
+///|
+pub extend Ds4Error with Eq::{not_equal, equal}
+
+///|
+pub extend EngineConfig with Debug::{to_repr}
+
+///|
+pub extend EngineConfig with Eq::{not_equal, equal}
+
+///|
+pub extend ThinkMode with Debug::{to_repr}
+
+///|
+pub extend ThinkMode with Eq::{not_equal, equal}

@@ -1,14 +1,14 @@
 ///|
 test "backend helpers" {
-  let backend = Backend::default()
+  let backend = @ds4.Backend::default()
   assert_true(backend.name() == "metal" || backend.name() == "cuda")
-  assert_true(ThinkMode::high().enabled())
-  assert_false(ThinkMode::none().enabled())
+  assert_true(@ds4.ThinkMode::high().enabled())
+  assert_false(@ds4.ThinkMode::none().enabled())
 }
 
 ///|
 test "tokens container" {
-  let tokens = Tokens::new()
+  let tokens = @ds4.Tokens::new()
   tokens.push(7)
   tokens.push(11)
   assert_true(tokens.length() == 2)

@@ -3,9 +3,9 @@ struct Config {
   model_path : String
   task : String
   cwd : String
-  ctx_size : Int
-  n_predict : Int
-  max_turns : Int
+  ctx_size : Int32
+  n_predict : Int32
+  max_turns : Int32
   temperature : Float
   top_p : Float
   seed : UInt64
@@ -22,8 +22,8 @@ struct ToolCall {
 ///|
 struct ReadRequest {
   path : String
-  start_line : Int
-  end_line : Int
+  start_line : Int32
+  end_line : Int32
 }
 
 ///|
@@ -91,7 +91,7 @@ fn ThinkRenderer::new(format_thinking : Bool) -> ThinkRenderer {
 }
 
 ///|
-fn next_think_marker(text : StringView) -> (Int, ThinkMarker)? {
+fn next_think_marker(text : StringView) -> (Int32, ThinkMarker)? {
   let open = text.find("<think>")
   let close = text.find("</think>")
   match (open, close) {
@@ -152,17 +152,17 @@ fn ThinkRenderer::render_complete(
     match next_think_marker(rest) {
       None => {
         self.write_text(out, rest)
-        rest = rest.view(start_offset=rest.length())
+        rest = rest.clamped_view(start=rest.length())
       }
       Some((index, Open)) => {
-        self.write_text(out, rest.view(end_offset=index))
+        self.write_text(out, rest.clamped_view(end=index))
         self.in_think = true
-        rest = rest.view(start_offset=index + "<think>".length())
+        rest = rest.clamped_view(start=index + "<think>".length())
       }
       Some((index, Close)) => {
-        self.write_text(out, rest.view(end_offset=index))
+        self.write_text(out, rest.clamped_view(end=index))
         self.close_think(out)
-        rest = rest.view(start_offset=index + "</think>".length())
+        rest = rest.clamped_view(start=index + "</think>".length())
       }
     }
   }
@@ -177,8 +177,8 @@ fn ThinkRenderer::render_piece(self : ThinkRenderer, raw : String) -> String {
   let input = self.pending + raw
   match input.rev_find("<") {
     Some(index) if input.length() - index < "</think>".length() => {
-      self.pending = input.view(start_offset=index).to_owned()
-      self.render_complete(input.view(end_offset=index))
+      self.pending = input.clamped_view(start=index).to_owned()
+      self.render_complete(input.clamped_view(end=index))
     }
     _ => {
       self.pending = ""
@@ -353,9 +353,7 @@ fn rendered_chat_prompt(
   prompt : String,
   think_mode : @ds4lib.ThinkMode,
 ) -> String {
-  let out = StringBuilder::new(
-    size_hint=system.length() + prompt.length() + 128,
-  )
+  let out = StringBuilder(size_hint=system.length() + prompt.length() + 128)
   out.write_string("<｜begin▁of▁sentence｜>")
   if think_mode == @ds4lib.ThinkMode::max() {
     out.write_string(@ds4lib.ThinkMode::max_prefix())
@@ -378,7 +376,7 @@ priv suberror CliError {
 }
 
 ///|
-impl Show for CliError with output(self : CliError, logger) {
+impl Show for CliError with fn output(self : CliError, logger) {
   match self {
     Message(message) => logger.write_string(message)
   }
@@ -405,7 +403,7 @@ fn default_config() -> Config {
 }
 
 ///|
-fn parse_positive_int(value : String, opt : String) -> Int raise CliError {
+fn parse_positive_int(value : String, opt : String) -> Int32 raise CliError {
   let parsed = @string.parse_int(value) catch {
     _ =>
       raise CliError::Message("ds4mbt: invalid value for " + opt + ": " + value)
@@ -460,19 +458,19 @@ fn parse_backend(value : String) -> @ds4lib.Backend raise CliError {
 
 ///|
 fn cli_command() -> @argparse.Command {
-  @argparse.Command::new(
+  @argparse.Command(
     "ds4mbt",
     about="Run a MoonBit coding micro agent through the DS4 MoonBit binding.",
     arg_required_else_help=true,
     options=[
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "task",
         short='p',
         long="prompt",
         about="Coding task for the agent.",
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "model",
         short='m',
         long="model",
@@ -480,13 +478,13 @@ fn cli_command() -> @argparse.Command {
         required=true,
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "cwd",
         long="cwd",
         about="Workspace directory for relative tools.",
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "ctx",
         short='c',
         long="ctx",
@@ -494,7 +492,7 @@ fn cli_command() -> @argparse.Command {
         default_values=["32768"],
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "tokens",
         short='n',
         long="tokens",
@@ -502,67 +500,65 @@ fn cli_command() -> @argparse.Command {
         default_values=["4096"],
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "max_turns",
         long="max-turns",
         about="Maximum tool/assistant turns.",
         default_values=["16"],
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "temp",
         long="temp",
         about="Sampling temperature.",
         default_values=["0.2"],
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "top_p",
         long="top-p",
         about="Nucleus sampling probability.",
         default_values=["0.95"],
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "seed",
         long="seed",
         about="Sampling seed. Omit for time-based.",
         allow_hyphen_values=true,
       ),
-      @argparse.OptionArg::new(
+      @argparse.OptionArg(
         "backend",
         long="backend",
         about="Select backend: metal, cuda, or cpu.",
       ),
     ],
     flags=[
-      @argparse.FlagArg::new("metal", long="metal", about="Use Metal backend."),
-      @argparse.FlagArg::new("cuda", long="cuda", about="Use CUDA backend."),
-      @argparse.FlagArg::new("cpu", long="cpu", about="Use CPU backend."),
-      @argparse.FlagArg::new(
+      @argparse.FlagArg("metal", long="metal", about="Use Metal backend."),
+      @argparse.FlagArg("cuda", long="cuda", about="Use CUDA backend."),
+      @argparse.FlagArg("cpu", long="cpu", about="Use CPU backend."),
+      @argparse.FlagArg(
         "think",
         long="think",
         about="Use normal thinking mode.",
       ),
-      @argparse.FlagArg::new(
+      @argparse.FlagArg(
         "think_max",
         long="think-max",
         about="Use Think Max when context is large enough.",
       ),
-      @argparse.FlagArg::new(
+      @argparse.FlagArg(
         "nothink",
         long="nothink",
         about="Disable thinking mode.",
       ),
     ],
     groups=[
-      @argparse.ArgGroup::new("input", required=true, multiple=false, args=[
-        "task",
-      ]),
-      @argparse.ArgGroup::new("backend", multiple=false, args=[
+      @argparse.ArgGroup("input", required=true, multiple=false, args=["task"]),
+      @argparse.ArgGroup("backend", multiple=false, args=[
         "backend", "metal", "cuda", "cpu",
       ]),
-      @argparse.ArgGroup::new("thinking", multiple=false, args=[
+      @argparse.ArgGroup("thinking", multiple=false, args=[
         "think", "think_max", "nothink",
       ]),
     ],
@@ -589,22 +585,22 @@ fn flag_set(matches : @argparse.Matches, name : String) -> Bool {
 fn config_from_matches(matches : @argparse.Matches) -> Config raise CliError {
   let mut config = default_config()
   if option_value(matches, "task") is Some(value) {
-    config = { ..config, task: value }
+    config = { ..config, task: value, }
   }
   if option_value(matches, "model") is Some(value) {
-    config = { ..config, model_path: value }
+    config = { ..config, model_path: value, }
   }
   if option_value(matches, "cwd") is Some(value) {
-    config = { ..config, cwd: value }
+    config = { ..config, cwd: value, }
   }
   if option_value(matches, "ctx") is Some(value) {
-    config = { ..config, ctx_size: parse_positive_int(value, "--ctx") }
+    config = { ..config, ctx_size: parse_positive_int(value, "--ctx"), }
   }
   if option_value(matches, "tokens") is Some(value) {
-    config = { ..config, n_predict: parse_positive_int(value, "--tokens") }
+    config = { ..config, n_predict: parse_positive_int(value, "--tokens"), }
   }
   if option_value(matches, "max_turns") is Some(value) {
-    config = { ..config, max_turns: parse_positive_int(value, "--max-turns") }
+    config = { ..config, max_turns: parse_positive_int(value, "--max-turns"), }
   }
   if option_value(matches, "temp") is Some(value) {
     config = {
@@ -613,31 +609,31 @@ fn config_from_matches(matches : @argparse.Matches) -> Config raise CliError {
     }
   }
   if option_value(matches, "top_p") is Some(value) {
-    config = { ..config, top_p: parse_float_range(value, "--top-p", 0.0, 1.0) }
+    config = { ..config, top_p: parse_float_range(value, "--top-p", 0.0, 1.0), }
   }
   if option_value(matches, "seed") is Some(value) {
-    config = { ..config, seed: parse_uint64(value, "--seed") }
+    config = { ..config, seed: parse_uint64(value, "--seed"), }
   }
   if option_value(matches, "backend") is Some(value) {
-    config = { ..config, backend: parse_backend(value) }
+    config = { ..config, backend: parse_backend(value), }
   }
   if flag_set(matches, "metal") {
-    config = { ..config, backend: @ds4lib.Backend::metal() }
+    config = { ..config, backend: @ds4lib.Backend::metal(), }
   }
   if flag_set(matches, "cuda") {
-    config = { ..config, backend: @ds4lib.Backend::cuda() }
+    config = { ..config, backend: @ds4lib.Backend::cuda(), }
   }
   if flag_set(matches, "cpu") {
-    config = { ..config, backend: @ds4lib.Backend::cpu() }
+    config = { ..config, backend: @ds4lib.Backend::cpu(), }
   }
   if flag_set(matches, "think") {
-    config = { ..config, think_mode: @ds4lib.ThinkMode::high() }
+    config = { ..config, think_mode: @ds4lib.ThinkMode::high(), }
   }
   if flag_set(matches, "think_max") {
-    config = { ..config, think_mode: @ds4lib.ThinkMode::max() }
+    config = { ..config, think_mode: @ds4lib.ThinkMode::max(), }
   }
   if flag_set(matches, "nothink") {
-    config = { ..config, think_mode: @ds4lib.ThinkMode::none() }
+    config = { ..config, think_mode: @ds4lib.ThinkMode::none(), }
   }
   config
 }
@@ -661,7 +657,7 @@ fn path_in_cwd(cwd : String, path : String) -> String {
 }
 
 ///|
-fn truncate_output(text : String, limit : Int) -> String {
+fn truncate_output(text : String, limit : Int32) -> String {
   if text.length() <= limit {
     text
   } else {
@@ -670,21 +666,21 @@ fn truncate_output(text : String, limit : Int) -> String {
 }
 
 ///|
-fn line_count(text : String) -> Int {
+fn line_count(text : String) -> Int32 {
   text.split("\n").to_array().length()
 }
 
 ///|
 fn line_numbered_text(
   text : String,
-  start_line : Int,
-  end_line : Int,
+  start_line : Int32,
+  end_line : Int32,
 ) -> String {
   let lines = text.split("\n").to_array()
   let total = lines.length()
   let start = if start_line <= 0 { 1 } else { start_line }
   let end = if end_line <= 0 || end_line > total { total } else { end_line }
-  let out = StringBuilder::new(size_hint=text.length() + total * 8)
+  let out = StringBuilder(size_hint=text.length() + total * 8)
   if start > total || start > end {
     out.write_string("(no lines in requested range)")
     return out.to_string()
@@ -699,7 +695,7 @@ fn line_numbered_text(
 }
 
 ///|
-fn first_line_of_match(text : String, needle : String) -> Int? {
+fn first_line_of_match(text : String, needle : String) -> Int32? {
   match text.find(needle) {
     None => None
     Some(index) => {
@@ -717,12 +713,12 @@ fn parse_legacy_tools(text : String) -> Array[ToolCall] {
     match rest.find(TOOL_BEGIN) {
       None => break
       Some(begin) => {
-        let after_begin = rest.view(start_offset=begin + TOOL_BEGIN.length())
+        let after_begin = rest.clamped_view(start=begin + TOOL_BEGIN.length())
         match after_begin.find(">") {
           None => break
           Some(close_name) => {
             let name = after_begin[:close_name].trim().to_owned()
-            let after_name = after_begin.view(start_offset=close_name + 1)
+            let after_name = after_begin.clamped_view(start=close_name + 1)
             match after_name.find(TOOL_END) {
               None => break
               Some(end_index) => {
@@ -730,8 +726,8 @@ fn parse_legacy_tools(text : String) -> Array[ToolCall] {
                   name,
                   body: after_name[:end_index].trim().to_owned(),
                 })
-                rest = after_name.view(
-                  start_offset=end_index + TOOL_END.length(),
+                rest = after_name.clamped_view(
+                  start=end_index + TOOL_END.length(),
                 )
               }
             }
@@ -749,7 +745,7 @@ fn parse_attr(tag : StringView, name : String) -> String? {
   match tag.find(marker) {
     None => None
     Some(index) => {
-      let after = tag.view(start_offset=index + marker.length())
+      let after = tag.clamped_view(start=index + marker.length())
       match after.find("\"") {
         None => None
         Some(end_index) => Some(after[:end_index].to_owned())
@@ -775,12 +771,12 @@ fn parse_dsml_params(text : StringView) -> Array[DsmlParam] {
     match rest.find(DSML_PARAM_START) {
       None => break
       Some(start) => {
-        let after_start = rest.view(start_offset=start)
+        let after_start = rest.clamped_view(start~)
         match after_start.find(">") {
           None => break
           Some(close_tag) => {
             let tag = after_start[:close_tag + 1]
-            let after_tag = after_start.view(start_offset=close_tag + 1)
+            let after_tag = after_start.clamped_view(start=close_tag + 1)
             match after_tag.find(DSML_PARAM_END) {
               None => break
               Some(end_index) => {
@@ -792,8 +788,8 @@ fn parse_dsml_params(text : StringView) -> Array[DsmlParam] {
                       value: dsml_unescape(after_tag[:end_index].to_owned()),
                     })
                 }
-                rest = after_tag.view(
-                  start_offset=end_index + DSML_PARAM_END.length(),
+                rest = after_tag.clamped_view(
+                  start=end_index + DSML_PARAM_END.length(),
                 )
               }
             }
@@ -833,13 +829,13 @@ fn dsml_tool_call(name : String, params : Array[DsmlParam]) -> ToolCall? {
                 "\n---\n" +
                 end_line.trim().to_owned(),
               })
-            _ => Some({ name, body: path.trim().to_owned() })
+            _ => Some({ name, body: path.trim().to_owned(), })
           }
       }
     "write" =>
       match (dsml_param(params, "path"), dsml_param(params, "content")) {
         (Some(path), Some(content)) =>
-          Some({ name, body: path.trim().to_owned() + "\n---\n" + content })
+          Some({ name, body: path.trim().to_owned() + "\n---\n" + content, })
         _ => None
       }
     "edit" =>
@@ -862,7 +858,7 @@ fn dsml_tool_call(name : String, params : Array[DsmlParam]) -> ToolCall? {
       }
     "bash" =>
       match dsml_param(params, "command") {
-        Some(command) => Some({ name, body: command })
+        Some(command) => Some({ name, body: command, })
         None => None
       }
     _ => None
@@ -877,12 +873,12 @@ fn parse_dsml_invokes(text : StringView) -> Array[ToolCall] {
     match rest.find(DSML_INVOKE_START) {
       None => break
       Some(start) => {
-        let after_start = rest.view(start_offset=start)
+        let after_start = rest.clamped_view(start~)
         match after_start.find(">") {
           None => break
           Some(close_tag) => {
             let tag = after_start[:close_tag + 1]
-            let after_tag = after_start.view(start_offset=close_tag + 1)
+            let after_tag = after_start.clamped_view(start=close_tag + 1)
             match after_tag.find(DSML_INVOKE_END) {
               None => break
               Some(end_index) => {
@@ -896,8 +892,8 @@ fn parse_dsml_invokes(text : StringView) -> Array[ToolCall] {
                     }
                   }
                 }
-                rest = after_tag.view(
-                  start_offset=end_index + DSML_INVOKE_END.length(),
+                rest = after_tag.clamped_view(
+                  start=end_index + DSML_INVOKE_END.length(),
                 )
               }
             }
@@ -917,8 +913,8 @@ fn parse_dsml_tools(text : String) -> Array[ToolCall] {
     match rest.find(DSML_TOOL_CALLS_START) {
       None => break
       Some(start) => {
-        let after_start = rest.view(
-          start_offset=start + DSML_TOOL_CALLS_START.length(),
+        let after_start = rest.clamped_view(
+          start=start + DSML_TOOL_CALLS_START.length(),
         )
         match after_start.find(DSML_TOOL_CALLS_END) {
           None => break
@@ -926,8 +922,8 @@ fn parse_dsml_tools(text : String) -> Array[ToolCall] {
             for call in parse_dsml_invokes(after_start[:end_index]) {
               calls.push(call)
             }
-            rest = after_start.view(
-              start_offset=end_index + DSML_TOOL_CALLS_END.length(),
+            rest = after_start.clamped_view(
+              start=end_index + DSML_TOOL_CALLS_END.length(),
             )
           }
         }
@@ -956,7 +952,7 @@ fn split_body_2(body : String) -> (String, String)? {
 }
 
 ///|
-fn parse_int_opt(value : String) -> Int? {
+fn parse_int_opt(value : String) -> Int32? {
   let parsed = @string.parse_int(value) catch { _ => return None }
   if parsed <= 0 {
     None
@@ -968,7 +964,7 @@ fn parse_int_opt(value : String) -> Int? {
 ///|
 fn parse_read_request_opt(body : String) -> ReadRequest? {
   match body.split_once("\n---\n") {
-    None => Some({ path: body.trim().to_owned(), start_line: 0, end_line: 0 })
+    None => Some({ path: body.trim().to_owned(), start_line: 0, end_line: 0, })
     Some((path, rest)) =>
       match rest.split_once("\n---\n") {
         None => None
@@ -979,7 +975,7 @@ fn parse_read_request_opt(body : String) -> ReadRequest? {
               parse_int_opt(end.trim().to_owned()),
             ) {
             (Some(start_line), Some(end_line)) if end_line >= start_line =>
-              Some({ path: path.trim().to_owned(), start_line, end_line })
+              Some({ path: path.trim().to_owned(), start_line, end_line, })
             _ => None
           }
       }
@@ -1180,7 +1176,7 @@ async fn generate_once(
   } else {
     config.n_predict
   }
-  let out = StringBuilder::new(size_hint=4096)
+  let out = StringBuilder(size_hint=4096)
   let renderer = ThinkRenderer::new(think_mode.enabled())
   while generated < max_tokens {
     let token = session.sample(
